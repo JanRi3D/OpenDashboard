@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Debug builds only: deterministic fixtures for every reference state (see README, "Demo fixtures"). -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+    <application>
+        <receiver android:name=".DemoReceiver" android:exported="true" tools:ignore="ExportedReceiver">
+            <intent-filter>
+                <action android:name="me.ri3d.dashboard.DEMO" />
+            </intent-filter>
+        </receiver>
+    </application>
+</manifest>

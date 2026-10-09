@@ -1,3 +1,304 @@
+<?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">OpenDashboard</string>
+    <string name="app_name" translatable="false">OpenDashboard</string>
+
+    <!-- Expected apps (names shown when the app is missing) -->
+    <string name="app_welle" translatable="false">WELLE</string>
+    <string name="app_openauto" translatable="false">OpenAuto</string>
+    <string name="app_phone">Phone</string>
+    <string name="app_files">File Explorer</string>
+    <string name="app_canservice" translatable="false">CanService</string>
+    <!-- Phone-side installer; the design said "ADB Car Manager", the shipped app is named My Headunit. -->
+    <string name="installer_name" translatable="false">My Headunit</string>
+
+    <!-- Header -->
+    <string name="date_short">EEE d MMM</string>
+    <string name="date_long">EEEE d MMMM</string>
+    <string name="clock">Clock</string>
+    <string name="settings">Settings</string>
+    <string name="dashboard">Dashboard</string>
+    <string name="back">Back</string>
+    <string name="phone_connected">Phone connected</string>
+    <string name="phone_paired">Phone paired</string>
+    <string name="phone_disconnected">Phone disconnected</string>
+    <string name="phone_none">No phone paired</string>
+    <string name="phone_bt_off">Bluetooth off</string>
+    <string name="phone_no_bt">No Bluetooth</string>
+    <string name="phone_unknown">Phone status unknown</string>
+
+    <!-- Tiles -->
+    <string name="tile_radio">Radio</string>
+    <string name="tile_aa">Android Auto</string>
+    <string name="tile_call">Calling</string>
+    <string name="tile_files">Files</string>
+    <string name="role_vehicle">Vehicle (CanService)</string>
+    <string name="radio_tap">Tap to listen</string>
+    <string name="aa_tap">Tap to start</string>
+    <string name="aa_connect">Connect your phone</string>
+    <string name="call_recents">Recents and contacts</string>
+    <string name="call_connect">Connect a phone first</string>
+    <string name="call_connect_short">Connect a phone</string>
+    <string name="files_line">USB, SD card, storage</string>
+    <string name="sub_bluetooth">%1$s · Bluetooth</string>
+    <string name="sub_app">App</string>
+    <string name="not_installed">Not installed</string>
+    <string name="apps">Apps</string>
+    <string name="apps_line">Everything installed</string>
+    <string name="apps_loading">Finding apps…</string>
+    <plurals name="app_count">
+        <item quantity="one">%d app</item>
+        <item quantity="other">%d apps</item>
+    </plurals>
+    <string name="add_to_dashboard">Add to dashboard</string>
+    <string name="free_slot">Free slot</string>
+    <plurals name="slots_free">
+        <item quantity="one">%d slot free</item>
+        <item quantity="other">%d slots free</item>
+    </plurals>
+    <string name="opening">Opening %1$s…</string>
+    <string name="cannot_open">%1$s couldn’t be opened</string>
+    <string name="not_installed_named">%1$s isn’t installed</string>
+    <string name="aa_auto_missing">Phone connected, but the Android Auto app couldn’t be started.</string>
+
+    <!-- Tile menu, picker, missing app -->
+    <string name="opens">Opens %1$s</string>
+    <string name="replace">Replace with another app</string>
+    <string name="remove_from_dashboard">Remove from dashboard</string>
+    <string name="edit_dashboard">Edit dashboard</string>
+    <string name="cancel">Cancel</string>
+    <string name="removed">%1$s removed</string>
+    <string name="replace_title">Replace %1$s</string>
+    <string name="pick_hint">Pick the app this tile opens</string>
+    <string name="this_tile">This tile</string>
+    <string name="on_dashboard">On dashboard</string>
+    <string name="now_on_dashboard">%1$s is on the dashboard</string>
+    <string name="no_apps_found">No launchable apps found on this head unit.</string>
+    <string name="missing_title">%1$s isn’t installed</string>
+    <string name="missing_body">Install it from your phone with %1$s, or pick another app for this tile.</string>
+    <string name="choose_another">Choose another app</string>
+    <string name="ok">OK</string>
+    <string name="choose_target">Open %1$s with</string>
+    <string name="choose_target_hint">Pick the app this button opens</string>
+    <string name="current_target">Current</string>
+    <string name="use_default">Use default</string>
+
+    <!-- Calls -->
+    <string name="incoming_call">Incoming call</string>
+    <string name="call_unknown">Unknown caller</string>
+    <string name="call_no_number">Number not available</string>
+    <string name="call_in_progress">In call</string>
+    <string name="decline">Decline</string>
+    <string name="accept">Accept</string>
+    <string name="mute">Mute</string>
+    <string name="unmute">Unmute</string>
+    <string name="end">End</string>
+    <string name="open_phone_app">Phone app</string>
+    <string name="answer_elsewhere">Answer on the phone app or wheel</string>
+
+    <!-- Vehicle widget -->
+    <string name="vehicle">Vehicle</string>
+    <string name="vehicle_a11y">Vehicle data from CanService</string>
+    <string name="outside">Outside</string>
+    <string name="fuel">Fuel</string>
+    <string name="range">Range</string>
+    <string name="battery">Battery</string>
+    <string name="doors">Doors</string>
+    <string name="coolant">Coolant</string>
+    <string name="trip">Trip</string>
+    <string name="via_canservice">Via CanService</string>
+    <string name="via_demo">Demo data · not live</string>
+    <string name="state_live">Live</string>
+    <string name="state_door">Door open</string>
+    <string name="state_stale">Stale</string>
+    <string name="state_nodata">No data</string>
+    <string name="doors_closed">Closed</string>
+    <string name="door_fl">Front left</string>
+    <string name="door_fr">Front right</string>
+    <string name="door_rl">Rear left</string>
+    <string name="door_rr">Rear right</string>
+    <string name="door_trunk">Boot</string>
+    <string name="door_hood">Bonnet</string>
+    <string name="unit_c">%1$s °C</string>
+    <string name="unit_pct">%1$s %%</string>
+    <string name="unit_km">%1$s km</string>
+    <string name="unit_v">%1$s V</string>
+    <string name="unit_kmh">%1$s km/h</string>
+    <string name="can_no_data">CanService isn’t sending data.</string>
+    <string name="can_missing">CanService isn’t installed on this head unit.</string>
+    <string name="can_refused">CanService refused the connection.</string>
+    <string name="open_canservice">Open CanService</string>
+
+    <!-- Vehicle widget values -->
+    <string name="widget_values">Vehicle widget values</string>
+    <string name="widget_values_short">Widget values</string>
+    <string name="widget_values_sub">Layout B: large value, bar, tiles 1–2 · Clock: first three</string>
+    <string name="values">Values</string>
+    <string name="widget_short">Widget</string>
+    <string name="slot_main">Large value</string>
+    <string name="slot_bar">Bar</string>
+    <string name="slot_below">Below the bar</string>
+    <string name="slot_tile1">Tile 1</string>
+    <string name="slot_tile2">Tile 2</string>
+    <string name="slot_tile3">Tile 3</string>
+    <string name="slot_tile4">Tile 4</string>
+    <string name="slot_shows">%1$s shows</string>
+    <string name="slot_hint">Values from CanService · others need an OBD adapter</string>
+    <string name="needs_obd">Needs OBD</string>
+    <string name="metric_needs_obd">%1$s · needs OBD, shows —</string>
+    <string name="doors_hint">Open / closed</string>
+    <string name="m_cabin">Cabin</string>
+    <string name="m_settemp">Set temp</string>
+    <string name="m_soc">Charge</string>
+    <string name="m_speed">Speed</string>
+    <string name="m_odometer">Odometer</string>
+    <string name="mt_outside">Outside temperature</string>
+    <string name="mt_cabin">Cabin temperature</string>
+    <string name="mt_settemp">Climate set temperature</string>
+    <string name="mt_fuel">Fuel level</string>
+    <string name="mt_soc">Battery charge (hybrid/EV)</string>
+    <string name="mt_range">Range</string>
+    <string name="mt_speed">Speed</string>
+    <string name="mt_odometer">Odometer</string>
+    <string name="mt_doors">Doors, boot and bonnet</string>
+    <string name="mt_battery">12 V battery</string>
+    <string name="mt_coolant">Coolant temperature</string>
+    <string name="mt_trip">Trip distance</string>
+
+    <!-- Clock and radio -->
+    <string name="radio_no_station">Station not reported</string>
+    <string name="radio_no_metadata">No now-playing info from %1$s yet. The buttons send media keys.</string>
+    <string name="radio_source_dab">DAB+ · %1$s</string>
+    <string name="radio_source_web">Web radio · %1$s</string>
+    <string name="radio_no_stations">No stations yet</string>
+    <string name="radio_no_stations_hint">Scan for DAB+ or add web radios in %1$s.</string>
+    <string name="station_of">Station %1$d of %2$d</string>
+    <string name="preset_station_of">Preset %1$d · Station %2$d of %3$d</string>
+    <string name="radio_no_control">Controls aren’t supported for %1$s.</string>
+    <string name="radio_missing">Install %1$s to use the radio.</string>
+    <string name="preset_of">Preset %1$d of %2$d</string>
+    <string name="preset_unknown">Previous / next station</string>
+    <string name="prev_station">Previous station</string>
+    <string name="next_station">Next station</string>
+    <string name="play_pause">Play or pause</string>
+    <string name="sent_to">Sent to %1$s</string>
+
+    <!-- Apps -->
+    <string name="quick_open">Quick open · %1$d of %2$d slots</string>
+    <string name="search_apps">Search apps</string>
+    <string name="all_apps">All apps</string>
+    <string name="no_match">No app matches</string>
+    <string name="no_match_hint">Check the spelling or show all apps.</string>
+    <string name="shown_as_widget">Shown as widget</string>
+    <string name="widget_hidden_short">Widget hidden</string>
+    <string name="dashboard_full">Dashboard full</string>
+    <string name="cat_radio">Radio</string>
+    <string name="cat_aa">Android Auto</string>
+    <string name="cat_calling">Calling</string>
+    <string name="cat_files">Files</string>
+    <string name="cat_vehicle">Vehicle data</string>
+    <string name="cat_media">Media</string>
+    <string name="cat_photos">Photos</string>
+    <string name="cat_sound">Sound</string>
+    <string name="cat_system">System</string>
+    <string name="cat_web">Web</string>
+    <string name="cat_navigation">Navigation</string>
+    <string name="cat_tools">Tools</string>
+    <string name="cat_app">App</string>
+
+    <!-- Settings -->
+    <string name="dashboard_layout">Dashboard layout</string>
+    <string name="layout_a">A · Widget left</string>
+    <string name="layout_b">B · Tiles row</string>
+    <string name="layout_a_short">Tall widget, 5 quick slots</string>
+    <string name="layout_b_short">Wide widget, 4 quick slots</string>
+    <string name="in_use">In use</string>
+    <string name="edit_tiles_a">Edit tiles on layout A</string>
+    <string name="edit_tiles_b">Edit tiles on layout B</string>
+    <string name="hold_hint">You can also hold a tile on the dashboard to edit it.</string>
+    <string name="integrations">Apps &amp; integrations</string>
+    <string name="integrations_short">Integrations</string>
+    <string name="general">General</string>
+    <string name="clock_screen">Clock screen</string>
+    <string name="clock_screen_sub">Shows when the dashboard is idle</string>
+    <string name="idle_1">1 min</string>
+    <string name="idle_5">5 min</string>
+    <string name="idle_never">Never</string>
+    <string name="vehicle_widget">Vehicle widget</string>
+    <string name="vehicle_widget_sub">Live data from CanService</string>
+    <string name="clock_24">24-hour clock</string>
+    <string name="clock_24_sub">Shows %1$s</string>
+    <string name="auto_aa">Start Android Auto</string>
+    <string name="auto_aa_sub">As soon as a phone connects</string>
+    <string name="accent">Accent colour</string>
+    <string name="accent_sub">Active tiles and highlights</string>
+    <string name="accent_amber">Amber</string>
+    <string name="accent_blue">Blue</string>
+    <string name="accent_green">Green</string>
+    <string name="accent_white">White</string>
+
+    <!-- Apps & integrations -->
+    <string name="launch_targets">Launch targets</string>
+    <string name="status">Integration status</string>
+    <string name="change">Change</string>
+    <string name="target_auto">%1$s (found automatically)</string>
+    <string name="target_missing">%1$s · not installed</string>
+    <string name="target_none">Not found · tap Change</string>
+    <string name="st_vehicle">Vehicle data · CanService</string>
+    <string name="st_vehicle_live">Receiving data. Raw doors (0 closed, 1 open assumed): %1$s</string>
+    <string name="st_vehicle_connected">Connected; no valid values yet.</string>
+    <string name="st_vehicle_stale">No new values for over 10 s; shown as stale until CanService answers again.</string>
+    <string name="st_vehicle_connecting">Connecting to CanService…</string>
+    <string name="st_vehicle_disconnected">CanService stopped; reconnects when it restarts.</string>
+    <string name="st_vehicle_refused">CanService refused the connection: %1$s</string>
+    <string name="st_vehicle_demo">Demo fixture data (debug build), not from the car.</string>
+    <string name="st_vehicle_none">Not installed (%1$s).</string>
+    <string name="st_radio">Radio · WELLE</string>
+    <string name="st_radio_keys">Previous, next and play/pause are sent as media keys. No now-playing info received yet (needs a WELLE build that broadcasts its state).</string>
+    <string name="st_radio_meta">Station info and controls available.</string>
+    <string name="st_radio_none">No supported radio controls for %1$s.</string>
+    <string name="st_phone">Phone · Bluetooth</string>
+    <string name="st_phone_connected">A paired phone is connected.</string>
+    <string name="st_phone_paired">Paired. Connection is confirmed when the phone connects next.</string>
+    <string name="st_phone_nobt">This device has no Bluetooth adapter apps can use.</string>
+    <string name="st_phone_perm">Bluetooth permission not granted.</string>
+    <string name="st_phone_other">No phone connected.</string>
+    <string name="st_calls">Calls</string>
+    <string name="st_calls_none">No call interface OpenDashboard can use. Calls stay in the head unit’s phone app.</string>
+    <string name="st_calls_demo">Demo fixture (debug build).</string>
+    <string name="st_home">Home app</string>
+    <string name="st_home_yes">OpenDashboard opens when you press Home.</string>
+    <string name="st_home_no">Home opens %1$s. Press Home and choose OpenDashboard to change it.</string>
+    <string name="st_home_unset">a chooser</string>
+
+    <!-- Editors -->
+    <string name="slots_used_a">Layout A · %1$d of %2$d slots used</string>
+    <string name="slots_used_b">Layout B · %1$d of %2$d slots used</string>
+    <string name="reset">Reset</string>
+    <string name="reset_done">Layout reset</string>
+    <string name="done">Done</string>
+    <string name="hide">Hide</string>
+    <string name="show_widget">Show widget</string>
+    <string name="widget_hidden">Vehicle widget hidden</string>
+    <string name="widget_hidden_sub">CanService data won’t show on the dashboard.</string>
+    <string name="remove">Remove</string>
+    <string name="remove_named">Remove %1$s</string>
+    <string name="move_left">Move %1$s left</string>
+    <string name="move_right">Move %1$s right</string>
+    <string name="add_app">Add app</string>
+    <string name="always_here">Always here</string>
+
+    <!-- First start -->
+    <string name="pick_dashboard">Pick your dashboard</string>
+    <string name="pick_dashboard_sub">You can switch layouts any time in Settings.</string>
+    <string name="layout_a_long">Vehicle widget on the left, 5 quick slots</string>
+    <string name="layout_b_long">Vehicle widget on top, 4 quick slots</string>
+    <string name="can_live">CanService live</string>
+    <string name="can_found">CanService found · no data</string>
+    <string name="can_not_found">CanService not found</string>
+    <plurals name="quick_found">
+        <item quantity="one">%1$d of %2$d quick apps installed</item>
+        <item quantity="other">%1$d of %2$d quick apps installed</item>
+    </plurals>
+    <string name="start_a">Start with layout A</string>
+    <string name="start_b">Start with layout B</string>
 </resources>

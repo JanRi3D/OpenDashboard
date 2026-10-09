@@ -13,3 +13,9 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# release signing: the keystore and its passwords stay on the build machine
+keystore.properties
+*.jks
+*.keystore
+app/release/
