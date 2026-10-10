@@ -42,7 +42,7 @@ docs/INTEGRATIONS.md.
 ```
 
 Output: `app/build/outputs/apk/debug/app-debug.apk`, copied to
-`dist/opendashboard-1.0.0-debug.apk`. Signed with v1 (JAR, what Android 4.x checks) and v2.
+`dist/opendashboard-1.1.0-debug.apk`. Signed with v1 (JAR, what Android 4.x checks) and v2.
 
 ### Release
 
@@ -64,7 +64,7 @@ source `github:JanRi3D/OpenDashboard`.
 Over ADB (USB or Wi-Fi):
 
 ```bash
-adb install -r dist/opendashboard-1.0.0-debug.apk
+adb install -r dist/opendashboard-1.1.0-debug.apk
 ```
 
 Or from the phone with My Headunit ("APK from phone" on the Car screen). OpenDashboard asks for no
