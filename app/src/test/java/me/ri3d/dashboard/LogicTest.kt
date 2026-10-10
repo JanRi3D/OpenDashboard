@@ -78,6 +78,21 @@ class LogicTest {
         assertEquals(3f, cx, 1e-4f); assertEquals(12f, cy, 1e-4f)
     }
 
+    @Test fun guidanceDistanceAndArrow() {
+        val us = java.util.Locale.US
+        assertEquals("350 m", Guidance.distance(352, 350_000, 1, us))
+        assertEquals("1.2 km", Guidance.distance(1234, 1200, 3, us))            // KILOMETERS_PARTIAL
+        assertEquals("12 km", Guidance.distance(12_340, 12_000, 2, us))
+        assertEquals("0.3 mi", Guidance.distance(480, 300, 5, us))
+        assertEquals("1.5 km", Guidance.distance(1500, 0, 0, us))               // no display unit: metres
+        assertNull(Guidance.distance(-1, 0, 0, us))                             // no distance event yet
+        assertNull(Guidance.distance(0, 0, 1, us))                              // first step: phone sends 0 m
+        assertEquals(Icons.TURN_LEFT, Guidance.glyph(4, 1))
+        assertEquals(Icons.TURN_RIGHT, Guidance.glyph(3, 2))
+        assertEquals(Icons.U_TURN, Guidance.glyph(6, 1))
+        assertEquals(Icons.STRAIGHT, Guidance.glyph(14, 3))
+    }
+
     @Test fun everyIconParses() {
         val sink = object : SvgPath.Sink {
             override fun move(x: Float, y: Float) {}

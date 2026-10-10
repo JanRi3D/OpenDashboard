@@ -19,7 +19,9 @@ Working: both dashboards, editors, app grid with favorites (5 slots in A, 4 in B
 layout), replace/remove/reorder, missing-app recovery, clock screen with idle switching,
 settings, first start, launching and remapping of every quick app, WELLE previous/next/play
 commands with now-playing display (needs the WELLE build that sends `me.ri3d.welle.STATE`),
-Bluetooth phone status (public API), automatic Android Auto start.
+Bluetooth phone status (public API), automatic Android Auto start. Next turn from Android Auto
+on the Android Auto tile and the clock screen (needs the OpenAuto build that sends
+`me.ri3d.openauto.NAV`; seen with a real phone while standing, not yet while driving).
 
 Vehicle data from the head unit's CanService (catalog in docs/CANSERVICE-CATALOG.md) is
 implemented and tested against a test double; the driver chooses which values the widget shows

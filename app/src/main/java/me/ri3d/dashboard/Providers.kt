@@ -196,3 +196,60 @@ object Welle : RadioControl {
     override fun next() = send(KeyEvent.KEYCODE_MEDIA_NEXT)
     override fun toggle() = send(KeyEvent.KEYCODE_MEDIA_PLAY_PAUSE)
 }
+
+/**
+ * Next turn from OpenAuto. OpenAuto builds with the navigation channel pass on what Android Auto sends
+ * an instrument cluster as the sticky broadcast `me.ri3d.openauto.NAV`: `status` (active / rerouting /
+ * inactive), `road`, `maneuver` + `direction` (aasdk enums), `image` (Maps' PNG arrow), `meters`,
+ * `distance` (displayed value x 1000) + `unit`. Older builds send nothing: no turns are shown.
+ */
+object OpenAutoNav {
+    private const val ACTION = "me.ri3d.openauto.NAV"
+    private var last: Intent? = null
+    private var png: ByteArray? = null
+    private var image: Bitmap? = null
+
+    private val receiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) { last = i; show() }
+    }
+
+    @SuppressLint("UnspecifiedRegisterReceiverFlag") // the flag exists from API 33 and is passed there
+    fun start(c: Context) {
+        val f = IntentFilter(ACTION) // the current sticky state (a route already running) arrives right away
+        if (Build.VERSION.SDK_INT >= 33) c.registerReceiver(receiver, f, Context.RECEIVER_EXPORTED) else c.registerReceiver(receiver, f)
+    }
+
+    /** Also re-run when the setting changes. */
+    fun show() {
+        val i = last
+        val status = i?.getStringExtra("status")
+        val g = if (i == null || !Hub.prefs.guidance || (status != "active" && status != "rerouting")) null else Guidance(
+            rerouting = status == "rerouting",
+            road = i.getStringExtra("road")?.trim()?.ifEmpty { null },
+            distance = Guidance.distance(i.getIntExtra("meters", -1), i.getIntExtra("distance", 0), i.getIntExtra("unit", 0)),
+            glyph = Guidance.glyph(i.getIntExtra("maneuver", 0), i.getIntExtra("direction", 0)),
+            image = decode(i.getByteArrayExtra("image")))
+        // Distance events come every second; screens re-render only when what they show changes.
+        if (g == Hub.guidance) return
+        Hub.guidance = g
+        Hub.changed(Hub.GUIDANCE)
+    }
+
+    /** Decoded once per new picture; anything that is not a small image is ignored. */
+    private fun decode(b: ByteArray?): Bitmap? {
+        if (b == null || b.isEmpty()) return null
+        if (b.contentEquals(png)) return image
+        png = b
+        image = try {
+            val o = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(b, 0, b.size, o)
+            // Opaque as sent; with alpha the screens can turn its black into transparency (turnIcon).
+            if (o.outWidth in 1..1024 && o.outHeight in 1..1024)
+                BitmapFactory.decodeByteArray(b, 0, b.size)?.copy(Bitmap.Config.ARGB_8888, false)?.apply { setHasAlpha(true) }
+            else null
+        } catch (e: OutOfMemoryError) {
+            null
+        }
+        return image
+    }
+}

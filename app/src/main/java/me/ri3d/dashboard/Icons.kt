@@ -32,6 +32,11 @@ object Icons {
     val PERSON = circle(12f, 8f, 4f) + "M4 21a8 8 0 0 1 16 0"
     val CAR_OUTLINE = "M5 11l1.5-4.5A2 2 0 0 1 8.4 5h7.2a2 2 0 0 1 1.9 1.5L19 11" + rect(3f, 11f, 18f, 6f, 2f) + "M6 17v2M18 17v2"
     const val ARROW = "M5 12h14M13 6l6 6-6 6"
+    // Next-turn fallbacks when Android Auto sends no picture.
+    const val STRAIGHT = "M12 20V4M6 10l6-6 6 6"
+    const val TURN_LEFT = "M17 21v-8a4 4 0 0 0-4-4H4M8 5 4 9l4 4"
+    const val TURN_RIGHT = "M7 21v-8a4 4 0 0 1 4-4h9M16 5l4 4-4 4"
+    const val U_TURN = "M16 21V10a5 5 0 0 0-10 0v8M2 14l4 4 4-4"
     const val APP = "M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4z"
 
     // Filled media controls (fill + stroke 2 in the reference, pause/play are fill only).

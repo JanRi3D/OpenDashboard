@@ -3,6 +3,7 @@ package me.ri3d.dashboard
 import android.content.Context
 import android.content.SharedPreferences
 import android.graphics.Bitmap
+import java.util.Locale
 
 /** The four mapped quick-launch roles plus the CanService app behind the vehicle widget. */
 enum class Role(val key: String) {
@@ -43,6 +44,10 @@ class Prefs(c: Context) {
     var accent: Int
         get() = sp.getInt("accent", 0)
         set(v) = sp.edit().putInt("accent", v).apply()
+    /** Next turn from Android Auto on the dashboard and clock screen. */
+    var guidance: Boolean
+        get() = sp.getBoolean("guidance", true)
+        set(v) = sp.edit().putBoolean("guidance", v).apply()
     /** What each place of the vehicle widget shows (see [WidgetSlots]). */
     var widgetSlots: List<Metric>
         get() = WidgetSlots.parse(sp.getString("widgetSlots", null))
@@ -262,4 +267,39 @@ interface RadioControl {
     fun prev()
     fun next()
     fun toggle()
+}
+
+// ---------------------------------------------------------------- navigation
+
+/**
+ * Next turn from Android Auto (OpenAuto). [image] is Google Maps' own arrow; without it [glyph] is
+ * drawn. [distance] as Maps displays it ("350 m", "1.2 km"); null = not reported yet.
+ */
+data class Guidance(val rerouting: Boolean, val road: String?, val distance: String?, val glyph: String, val image: Bitmap?) {
+    companion object {
+        private val UNITS = arrayOf("m", "km", "km", "mi", "mi", "ft", "yd") // aasdk DistanceUnit 1..7
+
+        /**
+         * [millis] = displayed value x 1000 in [unit] (aasdk DistanceUnit); unit 0 falls back to [meters].
+         * 0 = none: a real phone sent "0 m" for the first step ("Richtung ..."), where Maps shows no distance.
+         */
+        fun distance(meters: Int, millis: Int, unit: Int, loc: Locale = Locale.getDefault()): String? {
+            val (v, u) = when {
+                unit in 1..UNITS.size -> if (millis <= 0) return null else millis / 1000.0 to UNITS[unit - 1]
+                meters <= 0 -> return null
+                meters < 1000 -> meters.toDouble() to "m"
+                else -> meters / 1000.0 to "km"
+            }
+            val n = if (v >= 10 || v == Math.floor(v)) Math.round(v).toString() else String.format(loc, "%.1f", v)
+            return "$n $u"
+        }
+
+        /** aasdk ManeuverType (6 = U-turn) and ManeuverDirection (1 = left, 2 = right). */
+        fun glyph(maneuver: Int, direction: Int) = when {
+            maneuver == 6 -> Icons.U_TURN
+            direction == 1 -> Icons.TURN_LEFT
+            direction == 2 -> Icons.TURN_RIGHT
+            else -> Icons.STRAIGHT
+        }
+    }
 }

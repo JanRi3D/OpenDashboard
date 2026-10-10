@@ -207,7 +207,7 @@ class MainActivity : Activity() {
 
     private val hubListener: (Int) -> Unit = { k ->
         val deps = when (screen) {
-            Screen.DASH, Screen.CLOCK -> Hub.CONFIG or Hub.APPS or Hub.PHONE or Hub.CALL or Hub.RADIO
+            Screen.DASH, Screen.CLOCK -> Hub.CONFIG or Hub.APPS or Hub.PHONE or Hub.CALL or Hub.RADIO or Hub.GUIDANCE
             Screen.APPS, Screen.EDIT -> Hub.CONFIG or Hub.APPS
             Screen.WIDGET -> Hub.CONFIG
             Screen.SETTINGS -> Hub.CONFIG

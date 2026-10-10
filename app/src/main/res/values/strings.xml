@@ -229,6 +229,10 @@
     <string name="clock_24_sub">Shows %1$s</string>
     <string name="auto_aa">Start Android Auto</string>
     <string name="auto_aa_sub">As soon as a phone connects</string>
+    <string name="guidance">Next turn</string>
+    <string name="guidance_sub">From Android Auto, on dashboard and clock</string>
+    <string name="rerouting">Rerouting</string>
+    <string name="follow_route">Follow the route</string>
     <string name="accent">Accent colour</string>
     <string name="accent_sub">Active tiles and highlights</string>
     <string name="accent_amber">Amber</string>

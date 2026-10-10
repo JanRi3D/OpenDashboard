@@ -44,7 +44,9 @@ fun MainActivity.clockScreen(): View = col(28f).apply {
     val date = top.add(text("", 26f, color = C.MUTED))
     onTime += { val (t, s) = timeText(); time.text = t; time.suffix = s; date.text = dateText(true) }
     left.spring()
-    if (Hub.prefs.widget) left.add(VehicleWidget(this@clockScreen, VehicleWidget.CLOCK).view, MATCH, WRAP)
+    val g = Hub.guidance
+    if (g != null) left.add(guidanceRow(g), MATCH, WRAP) // a running route takes the vehicle values' place
+    else if (Hub.prefs.widget) left.add(VehicleWidget(this@clockScreen, VehicleWidget.CLOCK).view, MATCH, WRAP)
     left.spring()
     val quick = left.add(row(16f), MATCH, 88.u)
     fun quickButton(label: Int, icon: String, color: Int, r: Role) = quick.add(row(14f).apply {
@@ -60,6 +62,15 @@ fun MainActivity.clockScreen(): View = col(28f).apply {
 
     body.add(divider(), maxOf(1, 1.u), MATCH)
     body.add(radioPanel(), 420.u, MATCH)
+}
+
+/** Next turn on the clock screen: Maps' arrow, distance and road; tap returns to Android Auto. */
+private fun MainActivity.guidanceRow(g: Guidance): View = row(24f).apply {
+    add(iconBox(112f, 20f, if (g.image == null) g.glyph else null, 64f, C.accent, appIcon = turnIcon(g)), 112.u, 112.u)
+    val t = add(col(6f), 0, WRAP, 1f)
+    t.add(title(if (g.rerouting) getString(R.string.rerouting) else g.distance ?: getString(R.string.tile_aa), 56f, -0.03f, lineHeight = 1f))
+    t.add(text(g.road ?: getString(R.string.follow_route), 24f, color = C.TEXT2))
+    onTap { launchRole(Role.AA) }
 }
 
 private fun MainActivity.radioPanel(): View = col().apply {
@@ -290,6 +301,8 @@ fun MainActivity.settingsScreen(): View = col(20f).apply {
         switch(p.h24, getString(R.string.clock_24)) { p.h24 = !p.h24; Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
     setting(R.string.auto_aa, getString(R.string.auto_aa_sub),
         switch(p.autoAA, getString(R.string.auto_aa)) { p.autoAA = !p.autoAA; Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
+    setting(R.string.guidance, getString(R.string.guidance_sub),
+        switch(p.guidance, getString(R.string.guidance)) { p.guidance = !p.guidance; OpenAutoNav.show(); Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
     val names = intArrayOf(R.string.accent_amber, R.string.accent_blue, R.string.accent_green, R.string.accent_white)
     setting(R.string.accent, getString(R.string.accent_sub), row(8f).apply {
         for (i in C.ACCENTS.indices) add(frame().apply {

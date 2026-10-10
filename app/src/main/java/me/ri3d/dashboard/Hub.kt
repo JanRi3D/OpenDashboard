@@ -26,7 +26,7 @@ class App : Application() {
  */
 object Hub {
     const val CONFIG = 1; const val APPS = 2; const val VEHICLE = 4; const val PHONE = 8
-    const val CALL = 16; const val RADIO = 32
+    const val CALL = 16; const val RADIO = 32; const val GUIDANCE = 64
 
     lateinit var app: Application; private set
     lateinit var prefs: Prefs; private set
@@ -42,6 +42,8 @@ object Hub {
     /** null = no provider reports metadata (WELLE on Android 4.x). */
     var radio: RadioInfo? = null
     var radioControl: RadioControl? = null
+    /** null = no route running in Android Auto (or the setting is off). */
+    var guidance: Guidance? = null
     /** Set by the debug-only demo fixtures; real providers stay quiet while it is on. */
     var demo = false
 
@@ -62,6 +64,7 @@ object Hub {
         apps.refresh()
         Bluetooth.start(a)
         CanService.start(a)
+        OpenAutoNav.start(a)
         // Installs, removals and updates: refresh so "Not installed" tiles recover by themselves.
         val pkgs = IntentFilter().apply {
             addAction(Intent.ACTION_PACKAGE_ADDED); addAction(Intent.ACTION_PACKAGE_REMOVED)

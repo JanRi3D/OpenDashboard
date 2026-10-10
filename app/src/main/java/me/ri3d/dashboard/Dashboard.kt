@@ -1,5 +1,7 @@
 package me.ri3d.dashboard
 
+import android.graphics.Color
+import android.graphics.ColorMatrixColorFilter
 import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.SystemClock
@@ -11,7 +13,7 @@ import java.util.Locale
 
 /** What a dashboard tile shows for a favorite key. */
 class TileInfo(val key: String, val role: Role?, val entry: AppEntry?, val title: String, val line: String, val sub: String,
-               val glyph: String?, val icon: Drawable?, val accent: Boolean, val missingName: String) {
+               val glyph: String?, val icon: Drawable?, val accent: Boolean, val missingName: String, val bigIcon: Boolean = false) {
     val installed get() = entry != null
 }
 
@@ -37,7 +39,12 @@ fun MainActivity.tileInfo(key: String): TileInfo {
                 if (e == null) notInstalled else r?.station ?: getString(R.string.radio_tap),
                 r?.source ?: label, if (art == null) Icons.RADIO else null, art, false, missing)
         }
-        Role.AA -> TileInfo(key, role, e, getString(R.string.tile_aa),
+        Role.AA -> Hub.guidance?.takeIf { e != null }?.let { g ->
+            // Route running: the tile becomes the next turn.
+            TileInfo(key, role, e, if (g.rerouting) getString(R.string.rerouting) else g.distance ?: getString(R.string.tile_aa),
+                g.road ?: getString(R.string.follow_route), getString(R.string.tile_aa),
+                if (g.image == null) g.glyph else null, turnIcon(g), true, missing, bigIcon = true)
+        } ?: TileInfo(key, role, e, getString(R.string.tile_aa),
             when { e == null -> notInstalled; phone.disconnected -> getString(R.string.aa_connect); else -> getString(R.string.aa_tap) },
             if (phone.connected) getString(R.string.phone_connected) else label,
             Icons.AA, null, e != null && !phone.disconnected, missing)
@@ -52,6 +59,18 @@ fun MainActivity.tileInfo(key: String): TileInfo {
         Role.FILES -> TileInfo(key, role, e, getString(R.string.tile_files),
             if (e == null) notInstalled else getString(R.string.files_line), label, Icons.FOLDER, null, false, missing)
         Role.VEHICLE -> TileInfo(key, role, e, label, getString(R.string.cat_vehicle), label, Icons.CAR, null, false, missing)
+    }
+}
+
+/** Maps' arrow is white on opaque black: brightness becomes opacity, drawn in the accent like the fallback glyphs. */
+fun MainActivity.turnIcon(g: Guidance): Drawable? = g.image?.let {
+    BitmapDrawable(resources, it).apply {
+        val a = C.accent
+        colorFilter = ColorMatrixColorFilter(floatArrayOf(
+            0f, 0f, 0f, 0f, Color.red(a).toFloat(),
+            0f, 0f, 0f, 0f, Color.green(a).toFloat(),
+            0f, 0f, 0f, 0f, Color.blue(a).toFloat(),
+            0.3f, 0.59f, 0.11f, 0f, 0f))
     }
 }
 
@@ -128,8 +147,8 @@ fun MainActivity.tileView(i: Int, t: TileInfo): View = col().apply {
     background = pressable(C.CARD, if (t.accent) C.accent else C.LINE, 20f)
     if (b) pad(22f, 24f) else pad(22f)
     val iconColor = if (t.accent) C.accent else if (t.installed) C.TEXT else C.MUTED
-    val box = if (b) 72f else 64f
-    add(iconBox(box, if (b) 18f else 16f, t.glyph, if (b) 36f else 32f, iconColor, appIcon = t.icon), box.u, box.u)
+    val box = if (t.bigIcon) 120f else if (b) 72f else 64f
+    add(iconBox(box, if (b) 18f else 16f, t.glyph, box / 2, iconColor, appIcon = t.icon), box.u, box.u)
     spring()
     val texts = add(col(if (b) 8f else 6f), MATCH, WRAP)
     texts.add(title(t.title, if (b) 30f else 28f, -0.02f, lineHeight = 1.1f), MATCH, WRAP)

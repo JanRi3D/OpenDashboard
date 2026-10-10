@@ -80,11 +80,44 @@ WELLE on the unit (My Headunit) to get the display. A sticky broadcast survives 
 if WELLE is killed without stopping, the last state stays visible (its service is
 START_STICKY while playing and republishes when it restarts).
 
-## 3. OpenAuto status — not available
+## 3. OpenAuto — connection status not available; next turn built, unverified
 
-Only `LauncherActivity` is exported; `ProjectionService` and `ProjectionActivity` are not, and
-the source sends no broadcasts. "Wireless · ready" from the design is therefore never shown;
-the tile says "Tap to start" (or "Connect your phone" when Bluetooth reports no phone).
+Only `LauncherActivity` is exported; `ProjectionService` and `ProjectionActivity` are not.
+"Wireless · ready" from the design is therefore never shown; the tile says "Tap to start" (or
+"Connect your phone" when Bluetooth reports no phone).
+
+**Next turn.** Added to OpenAuto (`Desktop/OpenAuto`, uncommitted): it declares Android Auto's
+navigation status channel (type IMAGE, 256 × 256 arrows, as openDsh/openauto does) and passes
+every status, turn and distance event on as the sticky broadcast `me.ri3d.openauto.NAV`
+(`ConnectionManager.onNavigation`). Extras: `status` (`active`/`rerouting`/`inactive`), `road`,
+`maneuver` and `direction` (aasdk ManeuverType/ManeuverDirection), `exit` (roundabout),
+`image` (Maps' PNG arrow), `meters`, `seconds`, `distance` (displayed value × 1000) and `unit`
+(aasdk DistanceUnit). It sends `inactive` when a session starts and ends.
+
+OpenDashboard (`Providers.kt`, object `OpenAutoNav`) shows the turn while a route runs, unless
+Settings › Next turn is off: the Android Auto tile becomes the arrow, distance and road, and on
+the clock screen the turn takes the vehicle values' place. Without a picture it draws a
+straight/left/right/U-turn arrow from the maneuver. Screens re-render only when the shown
+distance, road or arrow changes.
+
+Test without a phone (no picture through `am`):
+
+```bash
+adb shell am broadcast -a me.ri3d.openauto.NAV --es status active --es road Hauptstrasse --ei maneuver 4 --ei direction 1 --ei meters 352 --ei distance 350000 --ei unit 1
+```
+
+Observed with a real phone (Samsung SM-S948B, head-unit server over Wi-Fi, OpenAuto on
+`HeadUnit_1280`, 2026-10-10): the channel opens, status active, turn "Richtung Fontanestraße"
+(DEPART, direction unspecified) with a 1739-byte PNG, repeated every second unchanged; one
+distance event of 0 m (shown as no distance, like Maps). No other message types arrived. Maps'
+picture is a white arrow on opaque black: OpenDashboard turns brightness into opacity and draws
+it in the accent (`turnIcon`). Not yet observed: the countdown while driving, later maneuvers,
+rerouting. The broadcast is readable by any app on the unit (street names of the route). If OpenAuto is
+killed mid-route the last turn stays until its next session.
+
+**Map picture.** Not built: the map is the projection's video stream, decoded into OpenAuto's
+own surface; showing it in a dashboard tile would mean a second decoder or passing a surface
+between apps, plus forwarding touch.
 
 ## 4. CanService vehicle data — built against the supplied catalog; protocol verified with a test double
 
