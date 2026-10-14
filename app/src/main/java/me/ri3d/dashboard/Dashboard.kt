@@ -76,17 +76,24 @@ fun MainActivity.turnIcon(g: Guidance): Drawable? = g.image?.let {
 
 // ---------------------------------------------------------------- header
 
-fun MainActivity.phoneChip(): Chip = Chip(this).apply {
-    val p = Hub.phone
-    set(getString(when (p.link) {
-        PhoneLink.CONNECTED -> R.string.phone_connected
-        PhoneLink.PAIRED -> R.string.phone_paired
-        PhoneLink.DISCONNECTED -> R.string.phone_disconnected
-        PhoneLink.NOT_PAIRED -> R.string.phone_none
-        PhoneLink.OFF -> R.string.phone_bt_off
-        PhoneLink.NO_BLUETOOTH -> R.string.phone_no_bt
-        PhoneLink.NO_PERMISSION, PhoneLink.UNKNOWN -> R.string.phone_unknown
-    }), if (p.connected) C.GREEN else C.FAINT)
+fun MainActivity.phoneStatus(): String = getString(when (Hub.phone.link) {
+    PhoneLink.CONNECTED -> R.string.phone_connected
+    PhoneLink.PAIRED -> R.string.phone_paired
+    PhoneLink.DISCONNECTED -> R.string.phone_disconnected
+    PhoneLink.NOT_PAIRED -> R.string.phone_none
+    PhoneLink.OFF -> R.string.phone_bt_off
+    PhoneLink.NO_BLUETOOTH -> R.string.phone_no_bt
+    PhoneLink.NO_PERMISSION, PhoneLink.UNKNOWN -> R.string.phone_unknown
+})
+
+fun MainActivity.phoneChip(): Chip = Chip(this).apply { set(phoneStatus(), if (Hub.phone.connected) C.GREEN else C.FAINT) }
+
+/** Header A/C button: the climate's set temperature; opens the climate panel. */
+private fun MainActivity.climateButton(): View = pill(null, Icons.THERMO) { openOverlay(Overlay.Climate) }.apply {
+    contentDescription = getString(R.string.climate)
+    val value = add(text("", 18f, F.medium))
+    add(caps(getString(R.string.ac_short), 12f))
+    onVehicle += { value.text = setTempText(); value.setTextColor(if (setTempFresh()) C.TEXT else C.FAINT) }
 }
 
 /** Active call: replaces the phone status area (dashboards and clock). */
@@ -130,14 +137,10 @@ fun MainActivity.dashHeader(): View = row().apply {
     spring()
     if (Hub.call.phase == CallPhase.ACTIVE) { add(callBar(), WRAP, 64.u); return@apply }
     val right = add(row(12f))
-    right.add(phoneChip(), WRAP, 44.u)
+    right.add(phoneChip().apply { onTap { openOverlay(Overlay.Phone) } }, WRAP, 44.u)
+    right.add(climateButton(), WRAP, 56.u)
     right.add(pill(getString(R.string.clock), Icons.CLOCK) { push(Screen.CLOCK) }, WRAP, 56.u)
-    right.add(frame().apply {
-        background = pressable(0, C.LINE2, 28f)
-        contentDescription = getString(R.string.settings)
-        add(IconView(context, Icons.SLIDERS, C.TEXT), 24.u, 24.u, gravity = Gravity.CENTER)
-        onTap { push(Screen.SETTINGS) }
-    }, 56.u, 56.u)
+    right.add(iconButton(Icons.SLIDERS, getString(R.string.settings)) { push(Screen.SETTINGS) }, 56.u, 56.u)
 }
 
 // ---------------------------------------------------------------- tiles
@@ -216,7 +219,7 @@ fun MainActivity.scrollGrid(cells: List<View>, cols: Int, gap: Float, rowH: Floa
 
 // ---------------------------------------------------------------- dashboards
 
-fun MainActivity.dashboard(): View = col(20f).apply {
+fun MainActivity.dashboard(): View = if (Hub.layout == Prefs.C) cardsDashboard() else col(20f).apply {
     pad(32f, 28f)
     val b = Hub.layoutB
     add(dashHeader(), MATCH, 64.u)
@@ -243,7 +246,7 @@ private fun MainActivity.customizable(v: View): View = v.apply {
 
 // ---------------------------------------------------------------- overlays
 
-private fun MainActivity.dialogBox(pad: Float, gap: Float): LinearLayout = col(gap).apply {
+fun MainActivity.dialogBox(pad: Float, gap: Float): LinearLayout = col(gap).apply {
     background = shape(C.CARD, C.LINE2, 24f)
     pad(pad)
 }

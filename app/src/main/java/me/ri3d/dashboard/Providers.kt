@@ -65,14 +65,16 @@ object Bluetooth {
         return try {
             if (!a.isEnabled) return PhoneState(PhoneLink.OFF)
             val phones = a.bondedDevices.orEmpty().filter { isPhone(it) }
+            val live = phones.firstOrNull { it.address in connected }
+            val name = (live ?: phones.singleOrNull())?.name?.trim()?.ifEmpty { null }
             when {
-                phones.any { it.address in connected } -> PhoneState(PhoneLink.CONNECTED)
+                live != null -> PhoneState(PhoneLink.CONNECTED, name)
                 a.getProfileConnectionState(BluetoothProfile.HEADSET) == BluetoothAdapter.STATE_CONNECTED ||
                     a.getProfileConnectionState(BluetoothProfile.A2DP) == BluetoothAdapter.STATE_CONNECTED ->
-                    PhoneState(PhoneLink.CONNECTED)
+                    PhoneState(PhoneLink.CONNECTED, name)
                 phones.isEmpty() -> PhoneState(PhoneLink.NOT_PAIRED)
-                sawDisconnect -> PhoneState(PhoneLink.DISCONNECTED)
-                else -> PhoneState(PhoneLink.PAIRED)
+                sawDisconnect -> PhoneState(PhoneLink.DISCONNECTED, name)
+                else -> PhoneState(PhoneLink.PAIRED, name)
             }
         } catch (e: SecurityException) { // BLUETOOTH_CONNECT not granted (API 31+)
             PhoneState(PhoneLink.NO_PERMISSION)

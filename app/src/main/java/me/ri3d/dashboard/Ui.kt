@@ -75,6 +75,16 @@ object Ui {
     }
     fun px(u: Float) = Math.round(u * s)
     fun px(u: Int) = Math.round(u * s)
+
+    /** Layout C is drawn for 1920 x 720 units and scaled as a whole (no reflow): 1 at 1920 x 720, 2/3 at 1280 x 720. */
+    fun cardsScale(w: Float, h: Float) = minOf(w / 1920f, h / 720f)
+
+    /** Builds (or updates) views with one unit = [scale] pixels, then restores the window's unit. */
+    inline fun <T> at(scale: Float, f: () -> T): T {
+        val s0 = s
+        s = scale
+        try { return f() } finally { s = s0 }
+    }
 }
 
 val Int.u get() = Ui.px(this)
@@ -238,6 +248,15 @@ fun Context.pill(label: CharSequence?, icon: String? = null, h: Float = 56f, pad
         if (icon != null) add(IconView(context, icon, fg), iconSize.u, iconSize.u)
         if (label != null) add(text(label, size, face, fg))
         if (onClick != null) onTap(onClick)
+    }
+
+/** Round outlined icon button (header Settings, card settings). */
+fun Context.iconButton(icon: String, desc: CharSequence, size: Float = 56f, iconSize: Float = 24f, onClick: () -> Unit): FrameLayout =
+    frame().apply {
+        background = pressable(0, C.LINE2, size / 2)
+        contentDescription = desc
+        add(IconView(context, icon, C.TEXT), iconSize.u, iconSize.u, gravity = Gravity.CENTER)
+        onTap(onClick)
     }
 
 /** Status chip with a dot (phone status, vehicle state). */

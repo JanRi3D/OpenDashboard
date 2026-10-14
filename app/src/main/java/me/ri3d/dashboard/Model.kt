@@ -25,9 +25,10 @@ class Prefs(c: Context) {
     var onboarded: Boolean
         get() = sp.getBoolean("onboarded", false)
         set(v) = sp.edit().putBoolean("onboarded", v).apply()
-    var layoutB: Boolean
-        get() = sp.getBoolean("layoutB", false)
-        set(v) = sp.edit().putBoolean("layoutB", v).apply()
+    /** [A], [B] or [C]; installs from before layout C kept a "layoutB" switch, read as the fallback. */
+    var layout: Int
+        get() = sp.getInt("layout", if (sp.getBoolean("layoutB", false)) B else A)
+        set(v) = sp.edit().putInt("layout", v).apply()
     var widget: Boolean
         get() = sp.getBoolean("widget", true)
         set(v) = sp.edit().putBoolean("widget", v).apply()
@@ -48,18 +49,22 @@ class Prefs(c: Context) {
     var guidance: Boolean
         get() = sp.getBoolean("guidance", true)
         set(v) = sp.edit().putBoolean("guidance", v).apply()
+    /** Explicit opt-in to climate writes; new installs and upgrades start in view-only mode. */
+    var climateControls: Boolean
+        get() = sp.getBoolean("climateControls", false)
+        set(v) = sp.edit().putBoolean("climateControls", v).apply()
     /** What each place of the vehicle widget shows (see [WidgetSlots]). */
     var widgetSlots: List<Metric>
         get() = WidgetSlots.parse(sp.getString("widgetSlots", null))
         set(v) = sp.edit().putString("widgetSlots", WidgetSlots.format(v)).apply()
 
-    fun favorites(b: Boolean): List<String> {
-        val raw = sp.getString(if (b) "favB" else "favA", null) ?: return DEFAULT
+    fun favorites(layout: Int): List<String> {
+        val raw = sp.getString(FAV_KEYS[layout], null) ?: return defaults(layout)
         return if (raw.isEmpty()) emptyList() else raw.split('\n')
     }
 
-    fun setFavorites(b: Boolean, keys: List<String>) =
-        sp.edit().putString(if (b) "favB" else "favA", keys.joinToString("\n")).apply()
+    fun setFavorites(layout: Int, keys: List<String>) =
+        sp.edit().putString(FAV_KEYS[layout], keys.joinToString("\n")).apply()
 
     /** Explicit launch target for a role (component string), or null for auto-discovery. */
     fun mapping(r: Role): String? = sp.getString("map." + r.key, null)
@@ -72,8 +77,12 @@ class Prefs(c: Context) {
     }
 
     companion object {
-        val DEFAULT = Role.QUICK.map { it.key }
-        fun max(b: Boolean) = if (b) 4 else 5
+        const val A = 0; const val B = 1; const val C = 2
+        private val FAV_KEYS = arrayOf("favA", "favB", "favC")
+        private val DEFAULT = Role.QUICK.map { it.key }
+        /** Layout C has its own radio column, so its favorites start without the Radio tile. */
+        fun defaults(layout: Int) = if (layout == C) DEFAULT - Role.RADIO.key else DEFAULT
+        fun max(layout: Int) = if (layout == B) 4 else 5
     }
 }
 
@@ -106,9 +115,20 @@ object Favorites {
  */
 class VehicleState {
     enum class Reading(val min: Double, val max: Double) {
-        OUTSIDE(-60.0, 80.0), CABIN(-40.0, 85.0), SET_TEMP(0.0, 40.0), FUEL(0.0, 100.0), SOC(0.0, 100.0),
+        OUTSIDE(-60.0, 80.0), CABIN(-40.0, 85.0), SET_TEMP(-40.0, 87.5), FUEL(0.0, 100.0), SOC(0.0, 100.0),
         RANGE(0.0, 3000.0), SPEED(0.0, 300.0), ODOMETER(0.0, 2000000.0),
-        BATTERY(0.0, 40.0), COOLANT(-60.0, 160.0), TRIP(0.0, 1000000.0)
+        BATTERY(0.0, 40.0), COOLANT(-60.0, 160.0), TRIP(0.0, 1000000.0),
+        // Gear remains unmapped; climate flags are decoded by the panel and seats normalized to 0..3.
+        GEAR(0.0, 255.0), FAN(0.0, 15.0), AC(0.0, 3.0), AUTO(0.0, 3.0), RECIRC(0.0, 3.0),
+        DEFROST_FRONT(0.0, 3.0), DEFROST_REAR(0.0, 3.0), CLIMATE_OFF(0.0, 3.0),
+        AC_TYPE(0.0, 1.0), AQS(0.0, 1.0),
+        SEAT_HEAT_DRIVER(0.0, 3.0), SEAT_VENT_DRIVER(0.0, 3.0), SEAT_HEAT_PASS(0.0, 3.0), SEAT_VENT_PASS(0.0, 3.0);
+
+        companion object {
+            /** What the climate panel shows; polled only while it is open. */
+            val CLIMATE = listOf(OUTSIDE, CABIN, SET_TEMP, FAN, AC, AUTO, RECIRC, DEFROST_FRONT, DEFROST_REAR, CLIMATE_OFF, AC_TYPE, AQS,
+                SEAT_HEAT_DRIVER, SEAT_VENT_DRIVER, SEAT_HEAT_PASS, SEAT_VENT_PASS)
+        }
     }
     enum class Door { FRONT_LEFT, FRONT_RIGHT, REAR_LEFT, REAR_RIGHT, TRUNK, HOOD }
     enum class Status { LIVE, DOOR_OPEN, STALE, NO_DATA }
@@ -122,7 +142,8 @@ class VehicleState {
     var source: String? = null
 
     fun put(r: Reading, v: Double?, now: Long) {
-        val ok = v != null && !v.isNaN() && v >= r.min && v <= r.max
+        val ok = v != null && !v.isNaN() && v >= r.min && v <= r.max &&
+            (r != Reading.SET_TEMP || v == -40.0 || v in 87.0..87.5 || v >= 17.0 && v < 34.0)
         values[r.ordinal] = if (ok) v!! else Double.NaN
         at[r.ordinal] = now
     }
@@ -224,11 +245,20 @@ object WidgetSlots {
     fun format(slots: List<Metric>) = slots.joinToString(",") { it.key }
 }
 
+/**
+ * Gear lever codes (BodyDetailsInfo 1 SHIFT_LEVER_POSITION) to P/R/N/D. The encoding is not in the
+ * catalog: empty until the raw values shown in Apps & integrations are recorded on a drive.
+ */
+val GEAR_CODES: Map<Int, Char> = emptyMap()
+
+fun gearOf(raw: Double?, codes: Map<Int, Char> = GEAR_CODES): Char? = raw?.let { codes[Math.round(it).toInt()] }
+
 // ---------------------------------------------------------------- phone and calls
 
 enum class PhoneLink { UNKNOWN, NO_BLUETOOTH, NO_PERMISSION, OFF, NOT_PAIRED, PAIRED, CONNECTED, DISCONNECTED }
 
-class PhoneState(val link: PhoneLink) {
+/** [name] = Bluetooth name of the connected (or else the paired) phone, when known. */
+class PhoneState(val link: PhoneLink, val name: String? = null) {
     val connected get() = link == PhoneLink.CONNECTED
     /** Known to have no phone connected (as opposed to unknown). */
     val disconnected get() = link == PhoneLink.OFF || link == PhoneLink.NOT_PAIRED || link == PhoneLink.DISCONNECTED

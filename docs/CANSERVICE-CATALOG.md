@@ -250,6 +250,7 @@ values.
 | ID | Meaning (inferred) |
 |---|---|
 | 0 | Front windscreen defrost |
+| 1 | AQS active flag |
 | 2 | A/C on/off flag |
 | 3 | Climate system on/off |
 | 4 | Automatic climate mode |
@@ -259,11 +260,125 @@ values.
 | 16 | Outside temperature |
 | 17 | Selected climate temperature |
 | 21 | Rear window defrost |
+| 27 | A/C type: 0 manual, 1 automatic |
 | 31 | Cooling flag used by the COOL quick button |
 | 38 | Cabin temperature |
 
 Climate ID 31 is read by the COOL quick button; the panel reads ID 2 for A/C. Their
 equivalence and all vehicle-specific value encodings are unconfirmed.
+
+## Write commands (climate, seats, steering wheel)
+
+Read from the head unit's own APKs (`canservice.apk` = how CanService encodes a command,
+`AC.apk` = which values the OEM climate app sends) with static `dexdump`, nothing executed;
+second, complete pass on 2026-10-14. **Nothing here has been sent to the car yet.** Every signal
+ID is the ordinal of an enum in `com.adayo.canproxy.bean` (`ACProp` = climate reads, `BodyCCSInfo`,
+`ACSettingsType`, `VehicleSettingType`); the read IDs above match those ordinals exactly.
+
+### Binder interfaces (AIDL stubs in `canservice.apk`)
+
+| Interface | Method | Transaction |
+|---|---|---|
+| `IACInterface` (climate child binder) | `getData(int id): float` | 4 |
+| | `sendData(int id, int value)` | 3 |
+| | `registerCallback(IACCallbackInterface)` / `unregisterCallback` | 1 / 2 |
+| `ICanboxInterface` | `getIACInterface()` | 1 |
+| | `sendData(int id, int value)` | 5 |
+| | `getBodyDetailsInfo(int)` / `getBodyCCSInfo(int)` | 6 / 7 |
+| | `getConfigInfo(int): int` | 10 |
+| | `sendDatas(Map)` | 15 |
+
+`IACCallbackInterface` has `onACPropChanged(int id)`, `onBodyCCSInfoChanged(int id)`,
+`onBodyDetailsInfoChanged(int id)`, `vehicleSpeedChanged(float)` and others: CanService can push
+changes instead of being polled.
+
+### How CanService turns a command into a CAN frame
+
+- **Climate** (`ACService.sendData` → `CanService.sendCanData(0x1110, id, value)`): one 8-byte
+  request frame. The chosen field gets the value; **every other field is reset to its default**
+  ("no request"). This describes the encoded request; effects on the car's other settings
+  still require physical validation.
+- **Seats and car settings** (`ICanboxInterfaceImpl.sendData` → message `0x1112`): one larger
+  frame. The chosen field gets the value; fields marked *keep* hold their last value; all others
+  get their *invalid* value (0 for the seat fields).
+- The value is written as an unsigned bit field (`Utils.setValue`): byte, start bit, length below.
+
+### Climate commands — `IACInterface.sendData(id, value)`, tx 3
+
+| ID | Command | Byte.bit, bits | Default (= no request) | Value the OEM app sends |
+|---|---|---|---|---|
+| 0 | `ICE3_RQ_ACSYSTEM_ACTVINACTV` climate system | 0.0, 2 | 2 | 1 on, 0 off (opposite of read ID 3 off mode: on when ID 3 = 0) |
+| 1 | `ICE3_RQ_AUTOMODE_ACTVINACTV` Auto | 0.2, 2 | 2 | 0 if read ID 4 = 1, else 1 |
+| 2 | `ICE3_RQ_AC_ACTVINACTV` A/C | 0.4, 2 | 2 | 0 if read ID 2 = 1, else 1 |
+| 3 | `ICE3_RQ_AIRINLET_MODE` air inlet | 0.6, 2 | 2 | 0 if read ID 9 = 1, else 1 (cars with AQS configured add a third state) |
+| 4 | `ICE3_RQ_DUALMODE_ACTVINACTV` dual zone | 1.0, 2 | 2 | 0 if read ID 5 = 1, else 1 |
+| 5 | `ICE3_RQ_FRONTDEFROST_ACTVINACTV` front defrost | 1.2, 2 | 2 | 0 if read ID 0 = 1, else 1 |
+| 6 | `ICE3_RQ_DEFOGREAR_ACTVINACTV` rear defrost | 1.4, 2 | 2 | 0 if read ID 21 = 1, else 1 |
+| 7 | `ICE3_SET_ACTEMP_HILO` | 1.6, 2 | 0 | 1 = LO, 2 = HI |
+| 8 | `ICE3_CMD_ACTEMP_INCRDECR` | 2.0, 5 | 8 | not used by the OEM app |
+| 9 | `ICE3_CMD_REARAC_ONOFF` rear A/C | 2.6, 2 | 0 | 1 / 2 |
+| 10 | `ICE3_SET_ACTEMP_LVL` driver temperature | 3.0, 4 | 15 | automatic climate: °C − 18 (0–14 = 18–32 °C; 17 → LO and 33 → HI go through ID 7); manual A/C: cold/warm position 0–13 |
+| 11 | `ICE3_CMD_BLOWERSPEED_INCRDECR` fan step | 3.4, 4 | 4 | 5 = one step up (also from off); 3 = one step down, only while read ID 12 > 0 |
+| 12 | `ICE3_SET_BLOWERSPEED_LVL` fan level | 4.0, 4 | 15 | slider position = the level read in ID 12 |
+| 13 | `ICE3_SET_AIRDISTRIBUTION_MODE` air outlets | 4.4, 4 | 15 | 0–3 |
+| 14 | `ICE3_SET_ACVIEWDSPL_TIME` | 5.0, 3 | 7 | — |
+| 15 | `ICE3_CMD_ACECOMODE_ONOFF` | 5.4, 2 | 0 | — |
+| 16 | `ICE3_CMD_AQS_ONOFF` air-quality system | 5.6, 2 | 0 | 1 / 2 |
+| 17 | `ICE3_CMD_ION_OnOff` ioniser | 6.0, 2 | 0 | 1 / 2 |
+| 18 | `ICE3_CMD_CTRLPASSENGERTEMP_LVL` passenger temperature | 6.2, 4 | 15 | as ID 10 |
+| 19 | `CE3_CMD_ACMAXMODE_ONOFF` MAX cooling | 6.6, 2 | 0 | 1 |
+| 20 | `ICE3_SET_PASSENGERACTEMP_HILO` | 7.0, 2 | 0 | as ID 7 |
+| 21–23 | sick mode, auto fog removal, fast warm | 7.2 / 7.4 / 7.6, 2 | 0 | — |
+
+**Temperature reads.** Climate read ID 27 `AC2_CONFIGURE_EV_AC_TYPE` is a one-bit value:
+1 = automatic climate, 0 = manual. Read ID 17 `AC1_SET_DRIVERTEMP_LVL` is converted by
+CanService as raw byte × 0.5 − 40. The OEM app uses `ACManager.getDataIntValue`, which truncates
+the float before interpreting it: 21.5 becomes 21, raw 0 becomes −40 (LO), and raw 255 becomes
+87.5 then 87 (HI). Automatic temperature choices are LO, 18–32 °C and HI; manual A/C uses
+the integer temperature minus 18 as cold/warm position 0–13. OpenDashboard follows these steps
+and rejects unknown A/C types or invalid readings before sending a relative change.
+
+**AQS recirculation.** `RootProxyView.onClick` reads ConfigInfo 27 `AQS`, climate ID 9
+air inlet and climate ID 1 AQS active. Without AQS, send ID 3 with 1 − inlet. With AQS:
+active AQS → ID 3/value 0; outside air (inlet 0) → ID 3/value 1; recirculation (inlet 1)
+→ ID 16/value 2. These are single requests, not a two-command sequence.
+
+### Seat commands — paired `ICanboxInterface.sendDatas(Map)`, tx 15
+
+The OEM app picks the command set from the car: ConfigInfo 0 `VEHICLE_TYPE` (tx 10, `readInt`)
+in {63, 66, 67, 68, 70, 71, 74} → the **ICE15** set (front seats FLS/FRS); any other type → the
+**ICE3** set. A seat has heating / ventilation when ConfigInfo 5 `DRI_SEATHEAT`, 6 `PASS_SEATHEAT`,
+9 `DRI_SEATWIND`, 10 `PASS_SEATWIND` read 1.
+
+| Seat function | ICE3 command (ID: byte.bit, bits, keep) | ICE15 command (ID: byte.bit, bits) | Feedback (BodyCCSInfo, tx 7) |
+|---|---|---|---|
+| Driver heat | 14: 13.0, 3, keep | 93 `ICE15_Set_FLSHeat_Lvl`: 64.3, 3 | ICE3: 49; ICE15: 94 |
+| Driver ventilation | 15: 13.3, 3, keep | 97 `ICE15_Set_FLSVtl_Lvl`: 66.3, 3 | ICE3: 50; ICE15: 98 |
+| Passenger heat | 55: 15.0, 3, keep | 94 `ICE15_Set_FRSHeat_Lvl`: 65.0, 3 | ICE3: 56; ICE15: 95 |
+| Passenger ventilation | 56: 15.3, 3, keep | 98 `ICE15_Set_FRSVtl_Lvl`: 67.0, 3 | ICE3: 57; ICE15: 99 |
+
+**Values.** Commands: **1 = off, 2 / 3 / 4 = level 1 / 2 / 3**, for heat and ventilation alike.
+The OEM app treats heat and ventilation of one seat as one control and always sends both
+together (`sendDatas`): choosing heat level 2 sends heat = 3 and ventilation = 1; "off" sends
+1 and 1. Feedback: ICE3 = level 0–3 directly (0 = off); ICE15 = level + 1.
+
+The proxy uses `Parcel.writeMap`. Each key is the **Parcelable** enum
+`com.adayo.canproxy.bean.VehicleSettingType`, whose `writeToParcel` writes its ordinal from
+the full OEM enum. The service's `CREATOR` reconstructs `values()[id]`. Each value is a **Float**;
+the receiving code casts it accordingly. Java-serialized enum keys, a locally reordered
+subset's ordinals, integer values or two independent tx 5 calls do not match this OEM request.
+OpenDashboard keeps the exact class name and explicit full-enum IDs, including in R8 builds.
+
+Second-row seats (ICE15 SLS/SRS, IDs 95/96/99/100, feedback 96/97/100/101) exist for cars with
+ConfigInfo `MIDDLE_HEAT` / `MIDDLE_VTL`. Seat massage: ICE3 IDs 12/13 (driver), 53/54
+(passenger).
+
+**Steering-wheel heat** (`ICE14_Set_SWHeat_Lvl`, ID 120, byte 75.0, 3 bits) is defined but
+never sent by the OEM app: values unknown. BodyDetailsInfo 112 `SWC3_STATUS_HEAT_LVL` is a
+candidate feedback signal, but its encoding was not established. The button stays disabled.
+
+`VehicleSettingType` also holds windows, sunroof, mirrors, lighting and driver-assistance
+switches (AEB, LDW, …); OpenDashboard does not use those.
 
 ## Notes from the source
 

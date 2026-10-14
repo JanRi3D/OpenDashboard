@@ -72,7 +72,7 @@ class AppIndex(private val ctx: Context) {
 
     private fun rememberLabels() {
         val p = Hub.prefs
-        for (b in listOf(false, true)) for (k in p.favorites(b)) {
+        for (l in Prefs.A..Prefs.C) for (k in p.favorites(l)) {
             val role = Role.of(k)
             val key = if (role != null) targetKey(role) else k
             find(key)?.let { p.setLabel(key!!, it.label) }

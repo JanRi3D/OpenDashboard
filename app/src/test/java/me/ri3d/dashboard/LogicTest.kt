@@ -13,8 +13,12 @@ import kotlin.math.hypot
 class LogicTest {
     @Test fun favoritesRespectCapacityAndOrder() {
         val a = listOf("radio", "aa", "call", "files")
-        assertEquals(a + "x/.X", Favorites.add(a, "x/.X", Prefs.max(false)))
-        assertEquals(a, Favorites.add(a, "x/.X", Prefs.max(true)))             // B is full at 4
+        assertEquals(a + "x/.X", Favorites.add(a, "x/.X", Prefs.max(Prefs.A)))
+        assertEquals(a, Favorites.add(a, "x/.X", Prefs.max(Prefs.B)))          // B is full at 4
+        val c = Prefs.defaults(Prefs.C)                                         // C: no Radio tile (radio column)
+        assertEquals(listOf("aa", "call", "files"), c)
+        assertEquals(c + "x/.X" + "y/.Y", Favorites.add(Favorites.add(c, "x/.X", Prefs.max(Prefs.C)), "y/.Y", Prefs.max(Prefs.C)))
+        assertEquals(5, Favorites.add(c + "x/.X" + "y/.Y", "z/.Z", Prefs.max(Prefs.C)).size) // C is full at 5
         assertEquals(a, Favorites.add(a, "aa", 5))                              // no duplicates
         assertEquals(listOf("radio", "call", "files"), Favorites.remove(a, "aa"))
         assertEquals(listOf("radio", "aa", "y/.Y", "files"), Favorites.replace(a, 2, "y/.Y"))
@@ -46,6 +50,18 @@ class LogicTest {
         assertEquals(Status.DOOR_OPEN, v.status(21_500))
     }
 
+    @Test fun climateTemperatureKeepsLoHiButRejectsInvalidValues() {
+        val v = VehicleState()
+        for (x in listOf(-40.0, 87.0, 87.5, 17.0, 21.5, 33.0)) {
+            v.put(Reading.SET_TEMP, x, 1000)
+            assertEquals(x, v.value(Reading.SET_TEMP))
+        }
+        for (x in listOf(-39.0, 0.0, 16.0, 34.0, 86.0, Double.NaN, Double.POSITIVE_INFINITY)) {
+            v.put(Reading.SET_TEMP, x, 1000)
+            assertNull(v.value(Reading.SET_TEMP))
+        }
+    }
+
     @Test fun widgetSlotsParseSafely() {
         assertEquals(WidgetSlots.DEFAULT, WidgetSlots.parse(null))
         assertEquals(WidgetSlots.DEFAULT, WidgetSlots.parse("nonsense"))
@@ -56,6 +72,22 @@ class LogicTest {
         assertEquals(Metric.OUTSIDE, bad[WidgetSlots.MAIN])
         assertEquals(Metric.FUEL, bad[WidgetSlots.BAR])
         assertEquals(Metric.SPEED, bad[WidgetSlots.BELOW])
+    }
+
+    @Test fun cardsScaleIsUniform() {
+        assertEquals(1f, Ui.cardsScale(1920f, 720f), 1e-6f)                     // the head unit
+        assertEquals(2f / 3, Ui.cardsScale(1280f, 720f), 1e-6f)                 // 1280 x 720 AVD: width-bound
+        assertEquals(2f / 3, Ui.cardsScale(1280f, 750f), 1e-6f)                 // 1024 x 600 AVD in units
+        assertEquals(0.5f, Ui.cardsScale(1920f, 360f), 1e-6f)                   // height-bound
+    }
+
+    @Test fun gearMapping() {
+        assertNull(gearOf(4.0))                                                 // empty until recorded in the car
+        assertNull(gearOf(null, mapOf(4 to 'D')))
+        val codes = mapOf(1 to 'P', 2 to 'R', 3 to 'N', 4 to 'D')
+        assertEquals('D', gearOf(4.0, codes))
+        assertEquals('R', gearOf(2.0000001, codes))                             // floats from the binder round
+        assertNull(gearOf(7.0, codes))
     }
 
     @Test fun svgArcsAreCircles() {

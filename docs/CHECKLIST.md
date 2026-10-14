@@ -22,7 +22,7 @@ Emulators: **E16** `HeadUnit_API16` (Android 4.1.2, 1024 × 600 mdpi, 256 MB) ·
 | Memory (`dumpsys meminfo`, total PSS) | Tested: 7.9 MB at 1024 × 600, 10.1 MB at 1920 × 720 |
 | Fullscreen: status bar hidden on 4.x (theme), sticky immersive on 19+, cutout padding on 28+ | Tested E16w, E36 |
 | Scaling to 1280 × 720, 1920 × 720, 1024 × 600 without clipping | Tested E16w, E16 |
-| Unit tests (favorites capacity, vehicle freshness/doors, SVG arcs, all icons parse) + lint (0 issues) | Tested |
+| Unit tests (favorites capacity incl. C, vehicle freshness/doors, widget places, layout C scale, gear mapping, SVG arcs, all icons parse) + lint (0 issues) | Tested |
 
 ## Visual match (reference board → implementation)
 
@@ -48,7 +48,10 @@ Emulators: **E16** `HeadUnit_API16` (Android 4.1.2, 1024 × 600 mdpi, 256 MB) ·
 | React to TIME_TICK / time / timezone / date broadcasts (registered while visible) | Built; minute ticks Tested, timezone change not exercised |
 | Layout A: tall widget, 3 × 2 grid, permanent Apps, "N slots free" Add tiles | Tested |
 | Layout B: wide widget, 5 tiles, "Free slot" Add tiles | Tested |
-| Separate favorites per layout, A 5 / B 4 slots, Apps not counted | Tested (A at 5/5 while B kept its 4) |
+| Separate favorites per layout, A 5 / B 4 / C 5 slots, Apps not counted | Tested (A at 5/5 while B kept its 4); C built |
+| Layout C: rail, radio column, vehicle card (speed gauge, bar, gear, tiles 1–2), favorites one per page with swipe and dots, next turn or clock card; uniform scale on other screens | Built; see the screenshots in `docs/screenshots/app-1920` |
+| Gear P/R/N/D from SHIFT_LEVER_POSITION | Built; mapping empty ("Not mapped") until recorded in the car; raw value in Apps & integrations |
+| Layout setting migrated from the old A/B switch | Built |
 | Layout choice persistent | Tested (force-stop + restart) |
 | Radio tile launches WELLE | Tested E16w (1920) |
 | Android Auto tile launches OpenAuto; accent outline unless Bluetooth reports no phone; no unverifiable readiness text | Tested E16w, E36 |
@@ -123,11 +126,16 @@ Emulators: **E16** `HeadUnit_API16` (Android 4.1.2, 1024 × 600 mdpi, 256 MB) ·
 
 | Item | Status |
 |---|---|
-| Layout A/B with "In use", Edit tiles link | Tested |
+| Layout A/B/C with "In use", Edit tiles link | A/B Tested; C Built |
+| A/C button (A/B header, C rail) → climate panel: set temperature, fan, seats, climate switches from CanService | API16 test-double reads; LO/HI/manual display and unknown/stale states handled; Unit still unverified |
+| Climate controls switch | Off by default, persisted; API16 opt-in/persistence and disabled/demo/disconnected gates passed |
+| Climate / seat buttons | All 14 supported buttons click-tested on API16 with Binder test double; paired Parcelable seat requests verified for both families; first physical test must be parked |
+| Steering-wheel heat | Disabled: command values unknown |
+| Phone status → phone panel (phone name, phone app, Android Auto) | Built |
 | Clock screen 1 min / 5 min / Never | Tested (1 min) |
 | Vehicle widget, 24-hour clock, Start Android Auto switches | Tested |
 | Accent Amber / Blue / Green / White; status colours unchanged | Tested (Amber, Blue) |
-| Defaults: A, 5 min, widget on, 24 h, auto AA on, Amber | Tested (fresh install) |
+| Defaults: A, 5 min, widget on, 24 h, auto AA on, climate controls off, Amber | Climate opt-in tested on API16; other defaults previously tested (fresh install) |
 | First start once; CanService found/not found vs live; quick apps found; Start follows the selection | Tested |
 | Back: dialog → screen stack → (launcher: stay / app: to background) | Tested E16w, E36 |
 | Home while default launcher → dashboard | Built; Unit: whether the ADAYO firmware allows a third-party Home is unverified |

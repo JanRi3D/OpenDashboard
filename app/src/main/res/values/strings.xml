@@ -131,7 +131,7 @@
     <!-- Vehicle widget values -->
     <string name="widget_values">Vehicle widget values</string>
     <string name="widget_values_short">Widget values</string>
-    <string name="widget_values_sub">Layout B: large value, bar, tiles 1–2 · Clock: first three</string>
+    <string name="widget_values_sub">B: large value, bar, tiles 1–2 · C: bar, below the bar, tiles 1–2 · Clock: first three</string>
     <string name="values">Values</string>
     <string name="widget_short">Widget</string>
     <string name="slot_main">Large value</string>
@@ -211,9 +211,10 @@
     <string name="layout_b">B · Tiles row</string>
     <string name="layout_a_short">Tall widget, 5 quick slots</string>
     <string name="layout_b_short">Wide widget, 4 quick slots</string>
+    <string name="layout_c">C · Cards</string>
+    <string name="layout_c_short">Radio and cards · best on wide 8:3 screens</string>
     <string name="in_use">In use</string>
-    <string name="edit_tiles_a">Edit tiles on layout A</string>
-    <string name="edit_tiles_b">Edit tiles on layout B</string>
+    <string name="edit_tiles">Edit tiles on layout %1$s</string>
     <string name="hold_hint">You can also hold a tile on the dashboard to edit it.</string>
     <string name="integrations">Apps &amp; integrations</string>
     <string name="integrations_short">Integrations</string>
@@ -248,7 +249,7 @@
     <string name="target_missing">%1$s · not installed</string>
     <string name="target_none">Not found · tap Change</string>
     <string name="st_vehicle">Vehicle data · CanService</string>
-    <string name="st_vehicle_live">Receiving data. Raw doors (0 closed, 1 open assumed): %1$s</string>
+    <string name="st_vehicle_live">Receiving data. Raw doors (0 closed, 1 open assumed): %1$s · raw gear: %2$s</string>
     <string name="st_vehicle_connected">Connected; no valid values yet.</string>
     <string name="st_vehicle_stale">No new values for over 10 s; shown as stale until CanService answers again.</string>
     <string name="st_vehicle_connecting">Connecting to CanService…</string>
@@ -275,8 +276,7 @@
     <string name="st_home_unset">a chooser</string>
 
     <!-- Editors -->
-    <string name="slots_used_a">Layout A · %1$d of %2$d slots used</string>
-    <string name="slots_used_b">Layout B · %1$d of %2$d slots used</string>
+    <string name="slots_used">Layout %1$s · %2$d of %3$d slots used</string>
     <string name="reset">Reset</string>
     <string name="reset_done">Layout reset</string>
     <string name="done">Done</string>
@@ -296,6 +296,7 @@
     <string name="pick_dashboard_sub">You can switch layouts any time in Settings.</string>
     <string name="layout_a_long">Vehicle widget on the left, 5 quick slots</string>
     <string name="layout_b_long">Vehicle widget on top, 4 quick slots</string>
+    <string name="layout_c_long">Radio column and swipeable cards, 5 favorites · best on wide 8:3 screens</string>
     <string name="can_live">CanService live</string>
     <string name="can_found">CanService found · no data</string>
     <string name="can_not_found">CanService not found</string>
@@ -303,6 +304,70 @@
         <item quantity="one">%1$d of %2$d quick apps installed</item>
         <item quantity="other">%1$d of %2$d quick apps installed</item>
     </plurals>
-    <string name="start_a">Start with layout A</string>
-    <string name="start_b">Start with layout B</string>
+    <string name="start_layout">Start with layout %1$s</string>
+    <!-- Layout C -->
+    <string name="date_rail">EEE d</string>
+    <string name="gear">Gear</string>
+    <string name="gear_not_mapped">Not mapped</string>
+    <string name="gear_unknown">Not reported</string>
+    <string name="kmh_caps">KM/H</string>
+    <string name="favorites">Favorites</string>
+    <string name="fav_count">%1$d of %2$d</string>
+    <string name="open">Open</string>
+    <string name="fix">Fix</string>
+    <string name="choose_app">Choose app</string>
+    <string name="page_n">Page %1$d of %2$d</string>
+    <string name="navigation">Navigation</string>
+    <string name="aa_tap_open">Android Auto · tap to open</string>
+
+    <!-- Climate panel -->
+    <string name="climate">Climate</string>
+    <string name="ac_short">A/C</string>
+    <string name="climate_sub">Live values · climate controls enabled</string>
+    <string name="climate_controls">Climate controls</string>
+    <string name="climate_controls_sub">Enable writes to the car · first test while parked</string>
+    <string name="climate_controls_off">Climate controls off · view only</string>
+    <string name="climate_value_unknown">%1$s · —</string>
+    <string name="manual_temp">Cold/warm level %1$d of 13</string>
+    <string name="manual_temp_short">%1$d/13</string>
+    <string name="aqs">Air · Auto</string>
+    <string name="temperature">Temperature</string>
+    <string name="colder">Colder</string>
+    <string name="warmer">Warmer</string>
+    <string name="fan">Fan</string>
+    <string name="fan_level">Level %1$d</string>
+    <string name="fan_off">Off</string>
+    <string name="less_fan">Less fan</string>
+    <string name="more_fan">More fan</string>
+    <string name="seats_wheel">Seats and wheel</string>
+    <string name="driver">Driver</string>
+    <string name="passenger">Passenger</string>
+    <string name="steering_wheel">Steering wheel</string>
+    <string name="heat">Heat</string>
+    <string name="vent">Vent</string>
+    <string name="auto">Auto</string>
+    <string name="recirculation">Recirculation</string>
+    <string name="front_defrost">Front defrost</string>
+    <string name="rear_defrost">Rear defrost</string>
+    <string name="climate_readings">Cabin %1$s · Outside %2$s</string>
+    <string name="climate_note">Values update when the car reports them. Seat heat/vent cycles off → 1 → 2 → 3 → off. Wheel heat unavailable.</string>
+    <string name="climate_sent">Request sent · waiting for the car’s reported state</string>
+    <string name="climate_disabled">Enable Climate controls in Settings to use these buttons. First test while parked.</string>
+    <string name="climate_demo">Demo · no commands sent</string>
+    <string name="climate_unavailable">Not sent · CanService is unavailable</string>
+    <string name="climate_unknown">Not sent · current value or vehicle configuration is unknown</string>
+    <string name="climate_unsupported">Control unavailable</string>
+    <string name="climate_limit">Temperature is already at its limit</string>
+    <string name="climate_fan_off">Fan is already off</string>
+    <string name="climate_busy">Please wait for the previous request</string>
+    <string name="climate_failed">CanService did not confirm the request · check the car’s controls</string>
+    <string name="close">Close</string>
+
+    <!-- Phone panel -->
+    <string name="phone_not_connected">No phone connected</string>
+    <string name="phone_connected_bt">Connected · Bluetooth</string>
+    <string name="phone_app">Phone app</string>
+    <string name="calls_contacts">Calls · contacts</string>
+    <string name="aa_connect_first">Connect first</string>
+    <string name="phone_calls_note">Calls ring in the head unit’s phone app. OpenDashboard can’t answer or end them yet.</string>
 </resources>

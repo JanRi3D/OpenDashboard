@@ -24,6 +24,9 @@ object Icons {
     const val BACK = "m15 18-6-6 6-6"
     const val NEXT = "m9 18 6-6-6-6"
     const val PLUS = "M12 5v14M5 12h14"
+    const val MINUS = "M5 12h14"
+    /** Climate button (A/C panel). */
+    const val THERMO = "M10 13.5V5a2 2 0 1 1 4 0v8.5a4 4 0 1 1-4 0zM12 17v-6"
     const val SWAP = "M4 7h14l-3-3M20 17H6l3 3"
     val REMOVE = circle(12f, 12f, 9f) + "M8 12h8"
     const val EDIT = "M4 20h4L19 9l-4-4L4 16zm9.5-13.5 4 4"

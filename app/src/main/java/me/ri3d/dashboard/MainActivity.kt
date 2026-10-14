@@ -32,6 +32,9 @@ sealed class Overlay {
     class Missing(val index: Int) : Overlay()
     /** Choose what a place of the vehicle widget shows. */
     class MetricPicker(val slot: Int) : Overlay()
+    /** Climate panel (A/C button) and phone panel (phone status), on every dashboard. */
+    object Climate : Overlay()
+    object Phone : Overlay()
 }
 
 class MainActivity : Activity() {
@@ -51,7 +54,9 @@ class MainActivity : Activity() {
     // Per-screen view state that must survive re-renders.
     var appsOnlyDash = false
     var appsQuery = ""
-    var welcomeB = false
+    var welcomeLayout = Prefs.A
+    /** Page of layout C's favorites card. */
+    var favPage = 0
 
     private var resumed = false
     private var idlePending = false
@@ -64,7 +69,7 @@ class MainActivity : Activity() {
         super.onCreate(savedInstanceState)
         if (Hub.nav.isEmpty()) {
             Hub.nav.add(if (Hub.prefs.onboarded) Screen.DASH else Screen.WELCOME)
-            welcomeB = Hub.prefs.layoutB
+            welcomeLayout = Hub.prefs.layout
         }
         root = object : FrameLayout(this) {
             override fun onSizeChanged(w: Int, h: Int, ow: Int, oh: Int) {
@@ -219,6 +224,8 @@ class MainActivity : Activity() {
             if (k and Hub.VEHICLE != 0) for (f in onVehicle) f()
             if (k and Hub.CALL != 0) renderCall()
             if (k and (Hub.APPS or Hub.CONFIG) != 0 && overlay != null) renderOverlay()
+            else if (k and Hub.VEHICLE != 0 && overlay === Overlay.Climate) renderOverlay()
+            else if (k and Hub.PHONE != 0 && overlay === Overlay.Phone) renderOverlay()
         }
     }
 
@@ -246,6 +253,8 @@ class MainActivity : Activity() {
 
     fun renderOverlay() {
         dialogLayer.removeAllViews()
+        val climate = overlay === Overlay.Climate
+        if (climate != Hub.climateOpen) { Hub.climateOpen = climate; if (climate) CanService.refresh() }
         val o = overlay ?: return
         dialogLayer.add(View(this).apply { setBackgroundColor(C.SCRIM); onTap { closeOverlay() } }, MATCH, MATCH)
         val (v, w, h) = when (o) {
@@ -253,6 +262,8 @@ class MainActivity : Activity() {
             is Overlay.Picker -> Triple(picker(o), 960.u, minOf(620f, Ui.H - 40).u)
             is Overlay.Missing -> Triple(missingDialog(o.index), 560.u, WRAP)
             is Overlay.MetricPicker -> Triple(metricPicker(o.slot), minOf(960f, Ui.W - 40).u, WRAP)
+            Overlay.Climate -> Triple(climatePanel(), minOf(1080f, Ui.W - 40).u, minOf(580f, Ui.H - 40).u)
+            Overlay.Phone -> Triple(phonePanel(), 520.u, WRAP)
         }
         v.isClickable = true // swallow taps so they do not reach the scrim
         dialogLayer.add(v, w, h, gravity = Gravity.CENTER)

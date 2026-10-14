@@ -18,31 +18,45 @@ import me.ri3d.dashboard.VehicleState.Reading
  * `com.adayo.canproxy.binder.service.ICanboxInterface`. Indexed read = interface token,
  * int signal ID, transact(code, flags 0), readException, readFloat; failures read as NaN.
  * The service has no callback in the catalog, so values are polled every 2 s on a background
- * thread while a screen is visible, and only those the widget shows (doors always, for the
- * door-open warning); VehicleState marks them stale if polling stops working.
+ * thread while a screen is visible, and only those the screens show ([Hub.wanted]; doors always,
+ * for the door-open warning); VehicleState marks them stale if polling stops working. Climate writes
+ * require explicit Settings opt-in, an active panel and a live connection; commands are never retried.
  */
 object CanService {
     const val PKG = "com.adayo.canservice"
     private const val ACTION = "com.adayo.can.canservice.action"
     private const val CANBOX = "com.adayo.canproxy.binder.service.ICanboxInterface"
-    private const val AC = "com.adayo.canproxy.binder.service.IACInterface"
 
     private const val TX_BODY_DETAILS = 6 // BodyDetailsInfo, float
-    private const val TX_AC_BINDER = 1    // child IACInterface binder
     private const val TX_SPEED = 11       // vehicle speed, no ID argument, float
-    private const val TX_AC_GET = 4       // IACInterface indexed float
 
     /** BodyDetailsInfo signal IDs (catalog names in comments). */
     private val BODY = mapOf(
         Reading.FUEL to 13,       // FUEL_LEVEL_VALUE, 0-100 %
         Reading.RANGE to 12,      // IC2_STATUS_ENDURMILEAGEVALUE, km
         Reading.ODOMETER to 10,   // ODOMETER_VALUE, km
-        Reading.SOC to 108)       // BMS_SOC, %
-    /** Climate (IACInterface) IDs; labels are inferred in the catalog. */
+        Reading.SOC to 108,       // BMS_SOC, %
+        Reading.GEAR to 1)        // SHIFT_LEVER_POSITION, raw code (see gearOf)
+    /** Climate (IACInterface) IDs = ACProp ordinals; labels are inferred in the catalog. */
     private val CLIMATE = mapOf(
         Reading.OUTSIDE to 16,
         Reading.SET_TEMP to 17,
-        Reading.CABIN to 38)
+        Reading.AC_TYPE to 27,
+        Reading.AQS to 1,
+        Reading.CABIN to 38,
+        Reading.DEFROST_FRONT to 0,  // AC1_STATUS_FRONTDEFROST_ACTVINACTV
+        Reading.AC to 2,             // AC1_STATUS_ACREQ_ACTVINACTV, 1 = on
+        Reading.CLIMATE_OFF to 3,    // AC1_STATUS_OFFMODE_ACTVINACTV, 1 = system off
+        Reading.AUTO to 4,           // AC1_STATUS_AUTOMODE_ACTVINACTV
+        Reading.RECIRC to 9,         // AC1_STATUS_AIRINLET_MODE
+        Reading.FAN to 12,           // AC1_STATUS_BLOWERSPEED_LVL
+        Reading.DEFROST_REAR to 21)  // BCM1_STATUS_DEFOGREAR_ONOFF
+    /** Seat equipment and feedback family are selected from the current vehicle configuration. */
+    private val SEATS = mapOf(
+        Reading.SEAT_HEAT_DRIVER to SeatControl.DRIVER_HEAT,
+        Reading.SEAT_VENT_DRIVER to SeatControl.DRIVER_VENT,
+        Reading.SEAT_HEAT_PASS to SeatControl.PASS_HEAT,
+        Reading.SEAT_VENT_PASS to SeatControl.PASS_VENT)
     /** Widget values CanService can supply; 12 V battery, coolant and trip are OBD-only. */
     val SUPPORTED = setOf(Metric.OUTSIDE, Metric.CABIN, Metric.SET_TEMP, Metric.FUEL, Metric.SOC,
         Metric.RANGE, Metric.SPEED, Metric.ODOMETER, Metric.DOORS)
@@ -63,16 +77,22 @@ object CanService {
     var refusal: String? = null; private set
     /** Last raw door values ("FL 0 · FR 0 …"), shown in Apps & integrations to check the encoding in the car. */
     var rawDoors = ""; private set
+    /** Last raw gear lever code, shown there too so P/R/N/D can be recorded on a drive. */
+    var rawGear = "—"; private set
+    /** null = configuration unknown; false = the car reports this equipment absent. */
+    var seatSupport: Map<ClimateCmd, Boolean?> = emptyMap(); private set
+    var climateBusy = false; private set
 
     @Volatile private var canbox: IBinder? = null
-    @Volatile private var ac: IBinder? = null
+    @Volatile private var climatePort: CanClimatePort? = null
     private var bound = false
-    private var active = false
+    @Volatile private var active = false
+    @Volatile private var commandEpoch = 0L
     private val worker = Handler(HandlerThread("canservice").apply { start() }.looper)
 
     private val connection: ServiceConnection = object : ServiceConnection {
         override fun onServiceConnected(name: ComponentName, service: IBinder) {
-            canbox = service; ac = null
+            canbox = service; climatePort = CanClimatePort(service); seatSupport = emptyMap()
             setLink(Link.CONNECTED)
             schedule(0)
         }
@@ -80,7 +100,7 @@ object CanService {
         override fun onServiceDisconnected(name: ComponentName) {
             // The binding stays and Android reconnects when CanService restarts; if it was
             // force-stopped instead, the binding is gone, so rebind after a while.
-            canbox = null; ac = null
+            canbox = null; climatePort = null; seatSupport = emptyMap()
             setLink(Link.DISCONNECTED)
             Hub.main.removeCallbacks(rebind)
             Hub.main.postDelayed(rebind, 30_000)
@@ -110,8 +130,40 @@ object CanService {
 
     /** Polls only while a screen is visible (activity resumed). */
     fun setActive(on: Boolean) {
+        if (!on) cancelPendingClimateCommands()
         active = on
         if (on) schedule(0) else worker.removeCallbacks(poll)
+    }
+
+    /** Main-thread lifecycle boundary: a pending tap belongs only to the panel session that made it. */
+    fun cancelPendingClimateCommands() { commandEpoch++ }
+
+    /** Poll now (e.g. the climate panel just opened and needs its values). */
+    fun refresh() { if (active) schedule(0) }
+
+    /** Called on the main thread; fresh reads and the single write run on the polling worker. */
+    fun command(cmd: ClimateCmd, direction: Int = 0, done: (ClimateResult) -> Unit) {
+        val b = canbox
+        val port = climatePort
+        val epoch = commandEpoch
+        fun blocked(): ClimateResult? = when {
+            Hub.demo -> ClimateResult.DEMO
+            !Hub.prefs.climateControls -> ClimateResult.DISABLED
+            epoch != commandEpoch || !active || !Hub.climateOpen || b == null || b !== canbox || port == null || port !== climatePort -> ClimateResult.UNAVAILABLE
+            else -> null
+        }
+        blocked()?.let { done(it); return }
+        if (climateBusy) { done(ClimateResult.BUSY); return }
+        climateBusy = true
+        worker.post {
+            val result = try { ClimateControl(port!!, ::blocked).send(cmd, direction) }
+                catch (e: Exception) { ClimateResult.FAILED }
+            Hub.main.post {
+                done(result)
+                // Allow the car's reported state to catch up; never queue or replay rapid taps.
+                Hub.main.postDelayed({ climateBusy = false; refresh() }, if (result == ClimateResult.SENT) 700L else 0L)
+            }
+        }
     }
 
     private fun schedule(delay: Long) {
@@ -130,17 +182,34 @@ object CanService {
 
     private val poll = Runnable {
         val b = canbox
+        val port = climatePort
         if (b != null) {
-            val wanted = Hub.prefs.widgetSlots.mapNotNull { it.reading }.toSet()
+            val wanted = Hub.wanted()
             val values = HashMap<Reading, Float>()
+            val support = HashMap<ClimateCmd, Boolean?>()
             for ((r, id) in BODY) if (r in wanted) values[r] = read(b, CANBOX, TX_BODY_DETAILS, id)
+            if (SEATS.keys.any { it in wanted }) {
+                val type = port?.config(0)?.takeIf { it >= 0 }
+                val modern = type?.let { SeatControl.modern(it) }
+                for ((r, seat) in SEATS) if (r in wanted) {
+                    val equipped = port?.config(seat.config)?.takeIf { it in 0..1 }
+                    support[seat.cmd] = equipped?.let { it == 1 }
+                    values[r] = if (modern != null && equipped == 1)
+                        seat.level(port?.seat(seat.readId(modern)), modern)?.toFloat() ?: Float.NaN
+                    else Float.NaN
+                }
+            }
             if (CLIMATE.keys.any { it in wanted }) {
-                val climate = acBinder(b)
-                for ((r, id) in CLIMATE) if (r in wanted) values[r] = climate?.let { read(it, AC, TX_AC_GET, id) } ?: Float.NaN
+                for ((r, id) in CLIMATE) if (r in wanted) values[r] = port?.climate(id)?.toFloat() ?: Float.NaN
             }
             if (Reading.SPEED in wanted) values[Reading.SPEED] = read(b, CANBOX, TX_SPEED, null)
             val doors = DOORS.mapValues { read(b, CANBOX, TX_BODY_DETAILS, it.value) }
-            Hub.main.post { publish(values, doors) }
+            Hub.main.post {
+                if (b === canbox && port === climatePort && !Hub.demo) {
+                    if (support.isNotEmpty()) seatSupport = support
+                    publish(values, doors)
+                }
+            }
         }
         schedule(POLL_MS)
     }
@@ -155,6 +224,7 @@ object CanService {
         for ((r, x) in values) if (!x.isNaN()) v.put(r, x.toDouble(), now)
         for ((door, x) in doors) if (!x.isNaN()) v.putDoor(door, doorOpen(x), now)
         rawDoors = doors.entries.joinToString(" · ") { (d, x) -> doorLabel(d) + " " + if (x.isNaN()) "—" else fmt(x) }
+        values[Reading.GEAR]?.let { rawGear = if (it.isNaN()) "—" else fmt(it) }
         Hub.vehicleChanged()
     }
 
@@ -176,22 +246,6 @@ object CanService {
 
     private fun fmt(x: Float) = if (x == Math.floor(x.toDouble()).toFloat()) x.toInt().toString() else x.toString()
 
-    private fun acBinder(b: IBinder): IBinder? {
-        ac?.let { if (it.isBinderAlive) return it }
-        val data = Parcel.obtain()
-        val reply = Parcel.obtain()
-        return try {
-            data.writeInterfaceToken(CANBOX)
-            b.transact(TX_AC_BINDER, data, reply, 0)
-            reply.readException()
-            reply.readStrongBinder().also { ac = it }
-        } catch (e: Exception) { // RemoteException, SecurityException, malformed reply
-            null
-        } finally {
-            data.recycle(); reply.recycle()
-        }
-    }
-
     /** One float read; [id] null for the standalone reads without a signal-ID argument (speed). */
     private fun read(b: IBinder, descriptor: String, code: Int, id: Int?): Float {
         val data = Parcel.obtain()
@@ -199,7 +253,7 @@ object CanService {
         return try {
             data.writeInterfaceToken(descriptor)
             if (id != null) data.writeInt(id)
-            b.transact(code, data, reply, 0)
+            if (!b.transact(code, data, reply, 0)) return Float.NaN
             reply.readException()
             reply.readFloat()
         } catch (e: Exception) {
@@ -208,4 +262,17 @@ object CanService {
             data.recycle(); reply.recycle()
         }
     }
+}
+
+/**
+ * Climate and seat write commands found in the head unit's own climate app (docs/CANSERVICE-CATALOG.md,
+ * "Write commands"). [ClimateControl] uses IACInterface tx 3, or a paired heat/ventilation map
+ * via ICanboxInterface tx 15 for seats. The IDs below are the ICE3 defaults; seat commands select
+ * their family from ConfigInfo. Steering-wheel heat is deliberately unsupported.
+ */
+enum class ClimateCmd(val canbox: Boolean, val id: Int) {
+    POWER(false, 0), AUTO(false, 1), AC(false, 2), RECIRC(false, 3), DEFROST_FRONT(false, 5), DEFROST_REAR(false, 6),
+    TEMP_HILO(false, 7), TEMP(false, 10), FAN_STEP(false, 11),
+    SEAT_HEAT_DRIVER(true, 14), SEAT_VENT_DRIVER(true, 15), SEAT_HEAT_PASS(true, 55), SEAT_VENT_PASS(true, 56),
+    WHEEL_HEAT(true, 120)
 }

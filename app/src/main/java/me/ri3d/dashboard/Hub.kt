@@ -45,7 +45,7 @@ object Hub {
     /** null = no route running in Android Auto (or the setting is off). */
     var guidance: Guidance? = null
     /** Set by the debug-only demo fixtures; real providers stay quiet while it is on. */
-    var demo = false
+    @Volatile var demo = false
 
     /** Screen stack; survives activity recreation, not process death. */
     val nav = ArrayList<Screen>()
@@ -98,10 +98,28 @@ object Hub {
 
     // ------------------------------------------------------------ dashboard configuration
 
-    val layoutB get() = prefs.layoutB
-    val max get() = Prefs.max(layoutB)
-    fun favorites(): List<String> = prefs.favorites(layoutB)
-    fun setFavorites(keys: List<String>) { prefs.setFavorites(layoutB, keys.take(max)); changed(CONFIG) }
+    val layout get() = prefs.layout
+    val layoutB get() = layout == Prefs.B
+    val max get() = Prefs.max(layout)
+    fun favorites(): List<String> = prefs.favorites(layout)
+    fun setFavorites(keys: List<String>) { prefs.setFavorites(layout, keys.take(max)); changed(CONFIG) }
+
+    /** Set by the activity while the climate panel is open: CanService then also polls its values. */
+    @Volatile var climateOpen = false
+        set(value) {
+            if (field && !value) CanService.cancelPendingClimateCommands()
+            field = value
+        }
+
+    /** Readings CanService polls (on its worker thread): what the screens can show right now. */
+    fun wanted(): Set<VehicleState.Reading> {
+        val w = prefs.widgetSlots.mapNotNullTo(HashSet()) { it.reading }
+        w += VehicleState.Reading.SET_TEMP // A/C button on every dashboard
+        w += VehicleState.Reading.AC_TYPE // automatic degrees / manual cold-warm positions
+        if (layout == Prefs.C) { w += VehicleState.Reading.SPEED; w += VehicleState.Reading.GEAR }
+        if (climateOpen) w += VehicleState.Reading.CLIMATE
+        return w
+    }
 
     fun isOnDashboard(e: AppEntry) = favorites().any { apps.resolve(it) == e.key }
     fun isWidgetApp(e: AppEntry) = e.key == apps.targetKey(Role.VEHICLE)
@@ -115,7 +133,7 @@ object Hub {
 
     /** Reset restores this layout's default quick apps and the widget, nothing else. */
     fun resetLayout() {
-        prefs.setFavorites(layoutB, Prefs.DEFAULT)
+        prefs.setFavorites(layout, Prefs.defaults(layout))
         prefs.widget = true
         changed(CONFIG)
     }

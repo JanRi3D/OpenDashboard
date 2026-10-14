@@ -1,9 +1,9 @@
 # OpenDashboard
 
 Dashboard and launcher for the Android car head unit (ADAYO AC822X, Android 4.2.2 / API 17,
-1920 × 720). Two layouts with a CanService vehicle widget and quick tiles for WELLE (radio),
-OpenAuto (Android Auto), the phone app and a file manager, an app grid, a clock/radio screen
-and its own settings. Built from the "OpenDashboard · 1280 × 720 head unit" design canvas.
+1920 × 720). Three layouts with a CanService vehicle widget and quick tiles for WELLE (radio),
+OpenAuto (Android Auto), the phone app and a file manager, an A/C (climate) panel and a phone
+panel on every dashboard, an app grid, a clock/radio screen and its own settings. Built from the "OpenDashboard · 1280 × 720 head unit" design canvas.
 
 Plain Kotlin on platform Views and Canvas: no AndroidX, no native code, one dex, about 2 MB.
 Runs on Android 4.1 (API 16) through 16.
@@ -15,8 +15,9 @@ Runs on Android 4.1 (API 16) through 16.
 
 ## What works and what does not (short)
 
-Working: both dashboards, editors, app grid with favorites (5 slots in A, 4 in B, stored per
-layout), replace/remove/reorder, missing-app recovery, clock screen with idle switching,
+Working: three dashboards (A widget left, B tiles row, C cards: rail, radio column and swipeable
+vehicle / favorites / next-turn cards, best on the 8:3 head unit), editors, app grid with favorites
+(5 slots in A and C, 4 in B, stored per layout), replace/remove/reorder, missing-app recovery, clock screen with idle switching,
 settings, first start, launching and remapping of every quick app, WELLE previous/next/play
 commands with now-playing display (needs the WELLE build that sends `me.ri3d.welle.STATE`),
 Bluetooth phone status (public API), automatic Android Auto start. Next turn from Android Auto
@@ -25,8 +26,13 @@ on the Android Auto tile and the clock screen (needs the OpenAuto build that sen
 
 Vehicle data from the head unit's CanService (catalog in docs/CANSERVICE-CATALOG.md) is
 implemented and tested against a test double; the driver chooses which values the widget shows
-(Settings › Widget values). It still needs a check in the car. Blocked: call detection and call commands. What is needed to finish each is in
-docs/INTEGRATIONS.md.
+(Settings › Widget values). It still needs a check in the car. The A/C panel shows the climate and
+seat values CanService reports. **Settings › Climate controls** enables the decoded climate and
+front-seat buttons; it starts **off**, including on upgrades. Seat commands select the vehicle's
+command set and switch heat/ventilation together. Temperature handles LO/HI and manual A/C levels.
+Steering-wheel heat stays unavailable because its command values are unknown. First test the
+controls while parked; emulator checks do not prove physical vehicle behavior. Call detection
+and call commands remain blocked; see [docs/INTEGRATIONS.md](docs/INTEGRATIONS.md).
 
 ## Build
 
@@ -98,6 +104,7 @@ adb shell am broadcast -a me.ri3d.dashboard.DEMO -n me.ri3d.dashboard/.DemoRecei
 | `phone` | `connected`, `paired`, `disconnected`, `none` |
 | `call` | `incoming`, `incoming-noctl`, `active`, `active-noctl`, `none` |
 | `radio` | `on` (Station name, Preset 3 of 6), `off` |
+| `layout` | `a`, `b`, `c` |
 | `hide` | comma-separated packages treated as not installed (e.g. `me.ri3d.welle`) |
 | `mode` | `off`: back to the real providers |
 
@@ -114,7 +121,11 @@ app/src/main/java/me/ri3d/dashboard/
   Providers.kt      Bluetooth phone status, WELLE media-button commands
   MainActivity.kt   screens, overlays, idle timer, time receivers, Back/Home
   Dashboard.kt      header, tiles, layouts A/B, hold menu, picker, missing app, call UI
-  VehicleWidget.kt  tall / wide / clock presentations
+  Cards.kt          layout C: rail, radio column, vehicle / favorites / next-turn cards, pager
+  Panels.kt         A/C (climate) panel and phone panel, opened from every dashboard
+  ClimateControl.kt climate/seat command planning, fresh reads and opt-in gate
+  CanClimatePort.kt Binder reads and climate writes; paired Parcelable seat requests
+  VehicleWidget.kt  tall / wide / card (gauge, gear) / clock presentations
   Screens.kt        clock, apps, settings, integrations, editors, first start
   Ui.kt Icons.kt SvgPath.kt   palette, scaling, drawing (crisp on Android 4.x HWUI)
 app/src/debug/      DemoReceiver (fixtures)

@@ -17,8 +17,9 @@ android {
         // The head unit (ADAYO AC822X) is API 17; the HeadUnit_API16 test AVD is API 16.
         minSdk = 16
         targetSdk = 36
-        versionCode = 2
-        versionName = "1.1.0"
+        versionCode = 3
+        versionName = "1.2.0"
+        testInstrumentationRunner = "me.ri3d.dashboard.ClimateInstrumentation"
     }
 
     // Release signing: keystore.properties (ignored by git) names the keystore and its passwords.

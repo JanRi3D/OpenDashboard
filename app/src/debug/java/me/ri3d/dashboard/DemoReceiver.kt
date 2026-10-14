@@ -12,7 +12,7 @@ import me.ri3d.dashboard.VehicleState.Reading
  *
  *   adb shell am broadcast -a me.ri3d.dashboard.DEMO -n me.ri3d.dashboard/.DemoReceiver \
  *       --es vehicle live|door|stale|nodata  --es phone connected|paired|disconnected|none \
- *       --es call none|incoming|incoming-noctl|active|active-noctl  --es radio on|off \
+ *       --es call none|incoming|incoming-noctl|active|active-noctl  --es radio on|off  --es layout a|b|c \
  *       --es hide me.ri3d.welle,...  (or --es mode off to return to the real providers)
  */
 class DemoReceiver : BroadcastReceiver() {
@@ -23,6 +23,7 @@ class DemoReceiver : BroadcastReceiver() {
         i.getStringExtra("phone")?.let { Demo.phone(it) }
         i.getStringExtra("call")?.let { Demo.call(it) }
         i.getStringExtra("radio")?.let { Demo.radio(it == "on") }
+        i.getStringExtra("layout")?.let { Hub.prefs.layout = "abc".indexOf(it).coerceAtLeast(0); Hub.changed(Hub.CONFIG) }
         i.getStringExtra("hide")?.let { h ->
             Hub.apps.hidden = h.split(',').map { it.trim() }.filter { it.isNotEmpty() }.toSet()
             Hub.apps.refresh()
@@ -46,7 +47,13 @@ private object Demo {
         v.put(Reading.OUTSIDE, 14.0, at); v.put(Reading.FUEL, 62.0, at); v.put(Reading.RANGE, 480.0, at)
         v.put(Reading.BATTERY, 12.6, at); v.put(Reading.COOLANT, 88.0, at); v.put(Reading.TRIP, 23.4, at)
         v.put(Reading.CABIN, 21.0, at); v.put(Reading.SET_TEMP, 21.5, at); v.put(Reading.SOC, 80.0, at)
+        v.put(Reading.AC_TYPE, 1.0, at); v.put(Reading.AQS, 0.0, at)
         v.put(Reading.SPEED, 48.0, at); v.put(Reading.ODOMETER, 12840.0, at)
+        // Raw codes as CanService would report them; the gear code stays "not mapped" (empty GEAR_CODES).
+        v.put(Reading.GEAR, 4.0, at); v.put(Reading.FAN, 3.0, at); v.put(Reading.AC, 1.0, at); v.put(Reading.AUTO, 1.0, at)
+        v.put(Reading.RECIRC, 0.0, at); v.put(Reading.DEFROST_FRONT, 0.0, at); v.put(Reading.DEFROST_REAR, 0.0, at)
+        v.put(Reading.CLIMATE_OFF, 0.0, at); v.put(Reading.SEAT_HEAT_DRIVER, 2.0, at); v.put(Reading.SEAT_VENT_DRIVER, 0.0, at)
+        v.put(Reading.SEAT_HEAT_PASS, 0.0, at); v.put(Reading.SEAT_VENT_PASS, 0.0, at)
         for (d in Door.values()) v.putDoor(d, vehicleMode == "door" && d == Door.REAR_LEFT, at)
         Hub.vehicleChanged()
     }
@@ -62,9 +69,9 @@ private object Demo {
     }
 
     fun phone(mode: String) = Hub.setPhone(when (mode) {
-        "connected" -> PhoneState(PhoneLink.CONNECTED)
-        "paired" -> PhoneState(PhoneLink.PAIRED)
-        "disconnected" -> PhoneState(PhoneLink.DISCONNECTED)
+        "connected" -> PhoneState(PhoneLink.CONNECTED, "Phone name")
+        "paired" -> PhoneState(PhoneLink.PAIRED, "Phone name")
+        "disconnected" -> PhoneState(PhoneLink.DISCONNECTED, "Phone name")
         else -> PhoneState(PhoneLink.NOT_PAIRED)
     }, fromEvent = true)
 

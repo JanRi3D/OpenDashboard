@@ -61,7 +61,7 @@ fun MainActivity.clockScreen(): View = col(28f).apply {
     quickButton(R.string.tile_call, Icons.PHONE, C.TEXT, Role.CALL)
 
     body.add(divider(), maxOf(1, 1.u), MATCH)
-    body.add(radioPanel(), 420.u, MATCH)
+    body.add(radioPanel(132f).apply { pad(48f, 0f, 0f, 0f) }, 420.u, MATCH)
 }
 
 /** Next turn on the clock screen: Maps' arrow, distance and road; tap returns to Android Auto. */
@@ -73,19 +73,19 @@ private fun MainActivity.guidanceRow(g: Guidance): View = row(24f).apply {
     onTap { launchRole(Role.AA) }
 }
 
-private fun MainActivity.radioPanel(): View = col().apply {
-    pad(48f, 0f, 0f, 0f)
+/** WELLE panel: the clock screen's right column (art 132) and layout C's radio column (art 240). */
+fun MainActivity.radioPanel(art: Float): View = col().apply {
     val info = Hub.radio
     val ctl = Hub.radioControl
     val target = Hub.apps.target(Role.RADIO)
-    val top = add(col(20f))
+    val top = add(col(if (art > 200) 24f else 20f))
     top.add(frame().apply {
         background = shape(C.CARD, C.LINE, 16f)
-        val art = info?.art
-        if (art != null) add(ImageView(context).apply { setImageBitmap(art); scaleType = ImageView.ScaleType.FIT_CENTER }, MATCH, MATCH).pad(8f)
-        else add(IconView(context, Icons.RADIO, C.FAINT, 1.25f), 52.u, 52.u, gravity = Gravity.CENTER)
+        val picture = info?.art
+        if (picture != null) add(ImageView(context).apply { setImageBitmap(picture); scaleType = ImageView.ScaleType.FIT_CENTER }, MATCH, MATCH).pad(8f)
+        else add(IconView(context, Icons.RADIO, C.FAINT, 1.25f), (art * 0.4f).u, (art * 0.4f).u, gravity = Gravity.CENTER)
         if (target != null) onTap { open(target) }
-    }, 132.u, 132.u)
+    }, art.u, art.u)
     val texts = top.add(col(8f))
     val appName = target?.label ?: missingName(Role.RADIO)
     texts.add(caps(info?.source ?: appName, 13f))
@@ -218,28 +218,40 @@ private data class Quad(val a: String, val b: Int, val c: Int, val d: Int)
 
 // ---------------------------------------------------------------- settings
 
-/** Miniature of layout A or B: Settings uses gap/radius 6 and padding 10, first start 8 and 14. */
-private fun MainActivity.layoutPreview(b: Boolean, large: Boolean = false): LinearLayout {
+/** Miniature of layout A, B or C: Settings uses gap/radius 6 and padding 10, first start 8 and 14. */
+private fun MainActivity.layoutPreview(layout: Int, large: Boolean = false): LinearLayout {
     val gap = if (large) 8f else 6f
-    val box = if (b) col(gap) else row(gap).apply { gravity = Gravity.NO_GRAVITY }
+    val box = if (layout == Prefs.B) col(gap) else row(gap).apply { gravity = Gravity.NO_GRAVITY }
     box.background = shape(C.BG, C.LINE, if (large) 14f else 12f)
     box.pad(if (large) 14f else 10f)
-    fun cell(accent: Boolean = false, dashed: Boolean = false) = View(this).apply {
+    fun cell(accent: Boolean = false, dashed: Boolean = false, fill: Int = C.LINE) = View(this).apply {
         background = when {
-            accent -> shape(C.LINE, C.accent, gap)
+            accent -> shape(fill, C.accent, gap)
             dashed -> shape(0, C.LINE2, gap, dashed = true)
-            else -> shape(C.LINE, radius = gap)
+            else -> shape(fill, radius = gap)
         }
     }
-    if (!b) {
-        box.add(cell(), 0, MATCH, 0.47f)
-        box.add(grid(listOf(cell(), cell(true), cell(), cell(), cell(), cell(dashed = true)), 3, 2, gap), 0, MATCH, 1f)
-    } else {
-        box.add(cell(), MATCH, 0, 0.39f)
-        box.add(grid(listOf(cell(), cell(true), cell(), cell(), cell()), 5, 1, gap), MATCH, 0, 1f)
+    when (layout) {
+        Prefs.A -> {
+            box.add(cell(), 0, MATCH, 0.47f)
+            box.add(grid(listOf(cell(), cell(true), cell(), cell(), cell(), cell(dashed = true)), 3, 2, gap), 0, MATCH, 1f)
+        }
+        Prefs.B -> {
+            box.add(cell(), MATCH, 0, 0.39f)
+            box.add(grid(listOf(cell(), cell(true), cell(), cell(), cell()), 5, 1, gap), MATCH, 0, 1f)
+        }
+        else -> { // rail, radio column (no panel), three cards
+            box.add(cell(fill = C.RAISED), 0, MATCH, 0.12f)
+            box.add(cell(fill = C.RAISED), 0, MATCH, 0.45f)
+            box.add(cell(), 0, MATCH, 0.5f)
+            box.add(cell(true), 0, MATCH, 0.5f)
+            box.add(cell(), 0, MATCH, 0.5f)
+        }
     }
     return box
 }
+
+private val LAYOUT_NAMES = intArrayOf(R.string.layout_a, R.string.layout_b, R.string.layout_c)
 
 fun MainActivity.settingsScreen(): View = col(20f).apply {
     pad(32f, 28f)
@@ -251,19 +263,19 @@ fun MainActivity.settingsScreen(): View = col(20f).apply {
     val body = add(row(20f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, 0, 1f)
     val layout = body.add(card().apply { pad(24f); dividerDrawable = gapDrawable(18f); showDividers = LinearLayout.SHOW_DIVIDER_MIDDLE }, 600.u, MATCH)
     layout.add(caps(getString(R.string.dashboard_layout), 13f))
-    val pick = layout.add(row(16f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, WRAP)
-    for (b in listOf(false, true)) {
-        val on = p.layoutB == b
-        pick.add(col(14f).apply {
+    val pick = layout.add(row(12f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, WRAP)
+    val shorts = intArrayOf(R.string.layout_a_short, R.string.layout_b_short, R.string.layout_c_short)
+    for (l in Prefs.A..Prefs.C) {
+        val on = p.layout == l
+        pick.add(col(12f).apply {
             background = pressable(C.RAISED, if (on) C.accent else C.LINE, 18f)
-            pad(14f)
-            add(layoutPreview(b), MATCH, 150.u)
+            pad(12f)
+            add(layoutPreview(l), MATCH, 120.u)
             val names = add(col(4f), MATCH, WRAP)
-            val titleRow = names.add(row(8f), MATCH, WRAP)
-            titleRow.add(text(getString(if (b) R.string.layout_b else R.string.layout_a), 20f, F.semi, track = -0.02f), 0, WRAP, 1f)
-            if (on) titleRow.add(caps(getString(R.string.in_use), 11f, C.accent))
-            names.add(text(getString(if (b) R.string.layout_b_short else R.string.layout_a_short), 15f, color = C.MUTED))
-            onTap { if (p.layoutB != b) { p.layoutB = b; Hub.changed(Hub.CONFIG) } }
+            names.add(text(getString(LAYOUT_NAMES[l]), 18f, F.semi, track = -0.02f))
+            names.add(para(getString(shorts[l]), 14f, lineHeight = 1.3f).apply { maxLines = 2 }, MATCH, WRAP)
+            if (on) names.add(caps(getString(R.string.in_use), 11f, C.accent))
+            onTap { if (p.layout != l) { p.layout = l; Hub.changed(Hub.CONFIG) } }
         }, 0, WRAP, 1f)
     }
     fun link(icon: String, label: String, f: () -> Unit) = row(12f).apply {
@@ -273,7 +285,7 @@ fun MainActivity.settingsScreen(): View = col(20f).apply {
         add(IconView(context, Icons.NEXT, C.MUTED), 22.u, 22.u)
         onTap(f)
     }
-    layout.add(link(Icons.EDIT, getString(if (p.layoutB) R.string.edit_tiles_b else R.string.edit_tiles_a)) { push(Screen.EDIT) }, MATCH, 64.u)
+    layout.add(link(Icons.EDIT, getString(R.string.edit_tiles, "ABC"[p.layout].toString())) { push(Screen.EDIT) }, MATCH, 64.u)
     layout.add(text(getString(R.string.hold_hint), 15f, color = C.MUTED).apply { setSingleLine(false) })
     // Side by side so the card still fits a 720-unit-high screen.
     val more = layout.add(row(12f), MATCH, 64.u)
@@ -303,6 +315,8 @@ fun MainActivity.settingsScreen(): View = col(20f).apply {
         switch(p.autoAA, getString(R.string.auto_aa)) { p.autoAA = !p.autoAA; Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
     setting(R.string.guidance, getString(R.string.guidance_sub),
         switch(p.guidance, getString(R.string.guidance)) { p.guidance = !p.guidance; OpenAutoNav.show(); Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
+    setting(R.string.climate_controls, getString(R.string.climate_controls_sub),
+        switch(p.climateControls, getString(R.string.climate_controls)) { p.climateControls = !p.climateControls; Hub.changed(Hub.CONFIG) }, 72.u, 44.u)
     val names = intArrayOf(R.string.accent_amber, R.string.accent_blue, R.string.accent_green, R.string.accent_white)
     setting(R.string.accent, getString(R.string.accent_sub), row(8f).apply {
         for (i in C.ACCENTS.indices) add(frame().apply {
@@ -355,7 +369,7 @@ fun MainActivity.integrationsScreen(): View = col(20f).apply {
     val vehicleLive = vs == VehicleState.Status.LIVE || vs == VehicleState.Status.DOOR_OPEN
     item(vehicleLive, R.string.st_vehicle, when {
         vs != VehicleState.Status.NO_DATA && v.source != VehicleWidget.CAN -> getString(R.string.st_vehicle_demo)
-        vehicleLive -> getString(R.string.st_vehicle_live, CanService.rawDoors)
+        vehicleLive -> getString(R.string.st_vehicle_live, CanService.rawDoors, CanService.rawGear)
         vs == VehicleState.Status.STALE -> getString(R.string.st_vehicle_stale)
         else -> when (CanService.link) {
             CanService.Link.CONNECTED -> getString(R.string.st_vehicle_connected)
@@ -389,25 +403,29 @@ fun MainActivity.integrationsScreen(): View = col(20f).apply {
 
 fun MainActivity.editor(): View = col(20f).apply {
     pad(32f, 28f)
-    val b = Hub.layoutB
+    val l = Hub.layout
     val favs = Hub.favorites()
     val max = Hub.max
     val head = add(row(12f), MATCH, 64.u)
-    head.add(titleBlock(getString(R.string.edit_dashboard), getString(if (b) R.string.slots_used_b else R.string.slots_used_a, favs.size, max)))
+    head.add(titleBlock(getString(R.string.edit_dashboard), getString(R.string.slots_used, "ABC"[l].toString(), favs.size, max)))
     head.spring()
     head.add(pill(getString(R.string.reset)) { Hub.resetLayout(); toast(getString(R.string.reset_done)) }, WRAP, 56.u)
     head.add(pill(getString(R.string.done), padH = 32f, fill = C.TEXT, fg = C.BG, stroke = 0) { home() }, WRAP, 56.u)
 
     val tiles = favs.mapIndexed { i, k -> editTile(i, k, favs) }
     val empties = (favs.size until max).map { editEmpty() }
-    val cells = tiles + empties + editApps()
-    if (!b) {
-        val body = add(row(20f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, 0, 1f)
-        body.add(editWidget(false), 380.u, MATCH)
-        body.add(grid(cells, 3, 2, 20f), 0, MATCH, 1f)
-    } else {
-        add(editWidget(true), MATCH, 168.u)
-        add(grid(cells, 5, 1, 16f), MATCH, 0, 1f)
+    when (l) {
+        Prefs.A -> {
+            val body = add(row(20f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, 0, 1f)
+            body.add(editWidget(false), 380.u, MATCH)
+            body.add(grid(tiles + empties + editApps(), 3, 2, 20f), 0, MATCH, 1f)
+        }
+        Prefs.B -> {
+            add(editWidget(true), MATCH, 168.u)
+            add(grid(tiles + empties + editApps(), 5, 1, 16f), MATCH, 0, 1f)
+        }
+        // Layout C: the favorites card's pages, in order; vehicle card and Apps (rail) are always there.
+        else -> add(grid(tiles + empties, 5, 1, 16f), MATCH, 0, 1f)
     }
 }
 
@@ -449,7 +467,7 @@ private fun MainActivity.editWidget(wide: Boolean): View {
 }
 
 private fun MainActivity.editTile(i: Int, key: String, favs: List<String>): View = col().apply {
-    val b = Hub.layoutB
+    val b = Hub.layout != Prefs.A
     val t = tileInfo(key)
     background = shape(C.CARD, C.accent, 20f, dashed = true)
     if (b) pad(18f, 22f, 18f, 18f) else pad(18f)
@@ -475,7 +493,7 @@ private fun MainActivity.editTile(i: Int, key: String, favs: List<String>): View
 }
 
 private fun MainActivity.editEmpty(): View = col().apply {
-    val b = Hub.layoutB
+    val b = Hub.layout != Prefs.A
     background = pressable(0, C.LINE2, 20f, dashed = true)
     if (b) pad(18f, 22f, 18f, 18f) else pad(18f)
     val box = if (b) 64f else 56f
@@ -508,21 +526,22 @@ fun MainActivity.welcome(): View = col(28f).apply {
     head.add(title(getString(R.string.pick_dashboard), 52f, -0.04f))
     head.add(text(getString(R.string.pick_dashboard_sub), 20f, color = C.MUTED))
     val choices = add(row(24f).apply { gravity = Gravity.NO_GRAVITY }, MATCH, 0, 1f)
-    for (b in listOf(false, true)) {
-        val on = welcomeB == b
+    val longs = intArrayOf(R.string.layout_a_long, R.string.layout_b_long, R.string.layout_c_long)
+    for (l in Prefs.A..Prefs.C) {
+        val on = welcomeLayout == l
         choices.add(col(18f).apply {
             background = pressable(C.CARD, if (on) C.accent else C.LINE, 22f)
             pad(18f)
-            add(layoutPreview(b, large = true), MATCH, 0, 1f)
+            add(layoutPreview(l, large = true), MATCH, 0, 1f)
             val r = add(row(14f), MATCH, WRAP)
             r.add(frame().apply {
                 background = shape(0, if (on) C.accent else C.LINE2, 14f, strokeW = 2f)
                 add(View(context).apply { background = shape(if (on) C.accent else 0, radius = 7f) }, 14.u, 14.u, gravity = Gravity.CENTER)
             }, 28.u, 28.u)
-            val t = r.add(col(4f))
-            t.add(text(getString(if (b) R.string.layout_b else R.string.layout_a), 24f, F.semi, track = -0.02f))
-            t.add(text(getString(if (b) R.string.layout_b_long else R.string.layout_a_long), 16f, color = C.MUTED))
-            onTap { welcomeB = b; render() }
+            val t = r.add(col(4f), 0, WRAP, 1f)
+            t.add(text(getString(LAYOUT_NAMES[l]), 24f, F.semi, track = -0.02f))
+            t.add(para(getString(longs[l]), 16f, lineHeight = 1.3f).apply { maxLines = 2 }, MATCH, WRAP)
+            onTap { welcomeLayout = l; render() }
         }, 0, MATCH, 1f)
     }
     val foot = add(row(12f), MATCH, 64.u)
@@ -538,9 +557,9 @@ fun MainActivity.welcome(): View = col(28f).apply {
             if (found == Role.QUICK.size) C.GREEN else C.FAINT)
     }, WRAP, 44.u)
     foot.spring()
-    val start = foot.add(pill(getString(if (welcomeB) R.string.start_b else R.string.start_a), null, h = 64f, padH = 32f, size = 19f,
+    val start = foot.add(pill(getString(R.string.start_layout, "ABC"[welcomeLayout].toString()), null, h = 64f, padH = 32f, size = 19f,
         fill = C.TEXT, fg = C.BG, stroke = 0) {
-        Hub.prefs.layoutB = welcomeB
+        Hub.prefs.layout = welcomeLayout
         Hub.prefs.onboarded = true
         home()
     }, WRAP, 64.u)

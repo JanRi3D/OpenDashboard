@@ -137,7 +137,7 @@ three. Defaults: outside temperature, fuel, range, doors, cabin temperature, spe
 |---|---|---|
 | Outside temperature | climate child binder (tx 1), child tx 4, ID 16 | °C, −60…80 accepted (label inferred in the catalog) |
 | Cabin temperature | climate ID 38 | °C, −40…85 |
-| Climate set temperature | climate ID 17 | °C, 0…40, one decimal |
+| Climate set temperature | climate IDs 17 + 27 (A/C type) | Automatic: whole-degree OEM steps, LO/HI; manual: cold/warm level 0–13 |
 | Fuel level | BodyDetailsInfo (tx 6) 13 `FUEL_LEVEL_VALUE` | 0–100 % (catalog) |
 | Battery charge (hybrid/EV) | BodyDetailsInfo 108 `BMS_SOC` | 0–100 % (NaN on a car without one) |
 | Range | BodyDetailsInfo 12 `IC2_STATUS_ENDURMILEAGEVALUE` | km, 0–3000 |
@@ -170,7 +170,69 @@ temperature; the log showed only the shown values and the doors being read.
 
 Still to verify in the car: that an ordinary app may bind (no permission on the service), the
 door encoding and driver-door side, the units of range/odometer/speed, and the climate IDs
-(16 outside, 38 cabin, 17 set temperature), which the catalog marks as inferred.
+(16 outside, 38 cabin, 17 set temperature), which the catalog marks as inferred. The head unit's
+own climate app confirms ID 17 is °C on cars with automatic climate (ID 27 = 1), with −40 for LO
+and 87/87.5 for HI. OpenDashboard preserves those special values and uses the OEM whole-degree
+interpretation. Manual A/C (ID 27 = 0) displays a cold/warm position instead of degrees.
+
+**Gear (layout C).** BodyDetailsInfo 1 `SHIFT_LEVER_POSITION` is read as a raw code while layout C
+is shown. Its encoding is not in the catalog, so `GEAR_CODES` in `Model.kt` is empty and the card
+shows P R N D all inactive with "Not mapped". To fill it in: open Settings › Apps & integrations
+during a drive test, note the "raw gear" value in P, R, N and D, and enter them as
+`mapOf(<code> to 'P', …)`; `gearOf` is unit-tested with an empty and a filled table.
+
+**Climate panel (A/C button, every dashboard).** While the panel is open, CanService also reads the
+climate flags (IDs 0 front defrost, 1 AQS, 2 A/C, 3 off mode, 4 auto, 9 air inlet, 12 fan,
+21 rear defrost). Seat feedback uses BodyCCSInfo transaction 7: 49/50/56/57 for ICE3 or
+94/98/95/99 for ICE15, selected using ConfigInfo 0 `VEHICLE_TYPE`. Equipment flags 5/6/9/10
+gate each front-seat function. Displayed seat levels are normalized to 0–3. Unknown and stale
+toggle readings show a dash; fresh body/door data alone cannot make the climate panel "Live".
+
+**Climate and seat commands: connected behind an opt-in switch.** Settings › Climate controls
+starts off on new installs and upgrades and persists the driver's choice. All 14 supported
+buttons call `CanService.command` → `ClimateControl` → `CanClimatePort` on the service worker.
+Commands require an active activity, an open climate panel and the same connected Binder.
+The gate is checked before reading and immediately before writing; demo mode blocks commands.
+Closing the panel or pausing the activity invalidates pending taps, even if it reopens before
+the worker finishes its reads.
+Rapid taps are rejected while a request is in progress and for 700 ms after an accepted request.
+There is no command retry, reconnect replay or optimistic update of the displayed vehicle state.
+
+The protocol comes from the supplied `AC.apk` and `canservice.apk`; see
+[CANSERVICE-CATALOG.md](CANSERVICE-CATALOG.md), "Write commands". Climate sends use child
+transaction 3. Front-seat heat and ventilation are sent together through parent transaction 15
+as a map with Parcelable `com.adayo.canproxy.bean.VehicleSettingType` keys (full OEM IDs) and
+Float values. ConfigInfo selects ICE3/ICE15, so one family's feedback is never used for the other.
+Unknown configuration or invalid feedback prevents a dependent command. Temperature handles
+automatic LO/HI and manual limits; fan up can start from off, while fan down stops at zero.
+Recirculation follows the OEM AQS cycle when ConfigInfo 27 reports that equipment.
+Steering-wheel heat remains disabled because the OEM app supplies no command values.
+
+**Local validation (2026-10-14, rerun after rewind recovery).** A clean build passed 23 unit
+tests, debug lint, debug/test APK assembly and R8 release assembly. The platform-only
+`ClimateInstrumentation` runner passed on the API 16 emulator: default-off preference and
+persistence, the actual Settings switch and all 14 supported panel buttons, exact Binder/Parcel
+requests for both seat families, disabled/demo/disconnected gates, cancellation across panel
+close/reopen and activity pause/resume, invalid/stale display state (including fan levels),
+and refused, exceptional or truncated replies. It substitutes a Binder test double; this is
+not a physical-car test. The release build preserves the OEM Parcelable names.
+
+Reproduce the emulator checks after `:app:assembleDebug :app:assembleDebugAndroidTest`:
+
+```text
+adb -s emulator-5554 install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s emulator-5554 install -r app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
+adb -s emulator-5554 shell am instrument -w me.ri3d.dashboard.test/me.ri3d.dashboard.ClimateInstrumentation
+```
+
+Require the runner's `PASS: climate preference...` output; an adb exit code alone is not a pass.
+The runner targets an emulator and a test double, never a vehicle connection.
+
+**Still to verify in the parked car.** Check the reported temperature/type and seat equipment,
+enable Climate controls deliberately, then try one button at a time and compare the response
+with the OEM panel and subsequent reported state. Check temperature limits, fan steps, each
+toggle and both front-seat heat/ventilation pairs. Disable the switch if the car responds
+unexpectedly. No command has been sent to a physical car during this implementation.
 
 ## 5. Phone connection — built, unverified on the unit
 
